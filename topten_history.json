@@ -1,0 +1,868 @@
+{
+  "여성": {
+    "20260223": {
+      "여성) 스쿠바 스트레이트 팬츠": {
+        "rank": 9,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "팬츠",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "5"
+      },
+      "여성) 비건 스웨이드 재킷": {
+        "rank": 3,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "59,900원",
+        "discount_rate": "40%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "여성) 소프트 테리 스트레이트 스웨트팬츠": {
+        "rank": 22,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "3"
+      },
+      "여성) 다이아 퀼팅 점퍼": {
+        "rank": 26,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "39,900원",
+        "discount_rate": "42%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여성) 스쿠바 릴랙스핏 스웨트셔츠": {
+        "rank": 16,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "여성) 소프트 테리 스웨트 후드 집업": {
+        "rank": 15,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "12,900원",
+        "discount_rate": "78%",
+        "rating": "5",
+        "review_count": "12"
+      },
+      "여성) 플리스 조거 스웨트팬츠": {
+        "rank": 17,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "12,900원",
+        "discount_rate": "67%",
+        "rating": "4.7",
+        "review_count": "48"
+      },
+      "여성) 세미와이드 데님": {
+        "rank": 27,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "49,900원",
+        "discount_rate": "16%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여성) 가먼트 다잉 콜라보 스웨트 후디 (캐스퍼&핫스터프)": {
+        "rank": 14,
+        "brand": "TOPTEN10",
+        "item_type": "후드",
+        "sale_price": "12,900원",
+        "discount_rate": "74%",
+        "rating": "4.9",
+        "review_count": "17"
+      },
+      "여성) 프리미엄 화인 메리노 스웨터": {
+        "rank": 18,
+        "brand": "TOPTEN10",
+        "item_type": "니트/스웨터",
+        "sale_price": "19,900원",
+        "discount_rate": "60%",
+        "rating": "5",
+        "review_count": "5"
+      },
+      "여성) [피너츠] 소프트 테리 스웨트셔츠": {
+        "rank": 19,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "6"
+      },
+      "여성) 논퀼팅 후드 점퍼": {
+        "rank": 20,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "59,900원",
+        "discount_rate": "57%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "여성) 스쿠바 하프 집업": {
+        "rank": 21,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "자켓/점퍼",
+        "sale_price": "35,900원",
+        "discount_rate": "28%",
+        "rating": "5",
+        "review_count": "4"
+      },
+      "여성) 프리미엄 화인 메리노 가디건": {
+        "rank": 23,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "29,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "15"
+      },
+      "여성) 플리스 콜라보 스웨트 후디 (SESAME STREET)": {
+        "rank": 24,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "12,900원",
+        "discount_rate": "74%",
+        "rating": "5",
+        "review_count": "19"
+      },
+      "여성) 커스타드얀 케이블 스웨터": {
+        "rank": 30,
+        "brand": "TOPTEN10",
+        "item_type": "니트/스웨터",
+        "sale_price": "19,900원",
+        "discount_rate": "60%",
+        "rating": "5",
+        "review_count": "4"
+      },
+      "여성) 수피마코튼 크루넥 가디건": {
+        "rank": 28,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여성) BALANCE 코튼 브리프 3PACK": {
+        "rank": 29,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "12,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "75"
+      }
+    }
+  },
+  "키즈": {
+    "20260223": {
+      "공용) 후드 바시티 패딩 점퍼": {
+        "rank": 1,
+        "brand": "TOPTENKIDS",
+        "item_type": "패딩",
+        "sale_price": "49,900원",
+        "discount_rate": "44%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "여아) 하트 퀼팅 패딩 점퍼": {
+        "rank": 2,
+        "brand": "TOPTENKIDS",
+        "item_type": "패딩",
+        "sale_price": "39,900원",
+        "discount_rate": "42%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "공용)[피너츠] 레이온 파자마셋업(9부)": {
+        "rank": 22,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 온에어 모이스처웜 셋업": {
+        "rank": 8,
+        "brand": "TOPTENKIDS",
+        "item_type": "내의/발열",
+        "sale_price": "9,900원",
+        "discount_rate": "66%",
+        "rating": "5",
+        "review_count": "73"
+      },
+      "공용) 더블니트 후드 레이어드 셋업": {
+        "rank": 11,
+        "brand": "TOPTENKIDS",
+        "item_type": "후드",
+        "sale_price": "49,900원",
+        "discount_rate": "28%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여아) 디즈니 캣앤독 스웨트셔츠": {
+        "rank": 6,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "12,900원",
+        "discount_rate": "67%",
+        "rating": "4.9",
+        "review_count": "10"
+      },
+      "공용) 스쿠바 배럴핏 스웨트팬츠": {
+        "rank": 28,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여아) 더블니트 카라 하프넥 셋업": {
+        "rank": 29,
+        "brand": "TOPTENKIDS",
+        "item_type": "니트/스웨터",
+        "sale_price": "49,900원",
+        "discount_rate": "28%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 더블니트 조거 스웨트팬츠": {
+        "rank": 21,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "13%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 밸런스 도비 조거 팬츠": {
+        "rank": 14,
+        "brand": "TOPTENKIDS",
+        "item_type": "팬츠",
+        "sale_price": "19,900원",
+        "discount_rate": "60%",
+        "rating": "4.9",
+        "review_count": "34"
+      },
+      "공용) 온에어 립배색 셋업 (카카오프렌즈)": {
+        "rank": 15,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "9,900원",
+        "discount_rate": "66%",
+        "rating": "5",
+        "review_count": "42"
+      },
+      "공용) 코튼 배기 팬츠": {
+        "rank": 30,
+        "brand": "TOPTENKIDS",
+        "item_type": "팬츠",
+        "sale_price": "29,900원",
+        "discount_rate": "40%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 테리 가먼트 다잉 스웨트셔츠": {
+        "rank": 17,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용)[마인드어데이 커버캣] 플리스 스웨트셔츠": {
+        "rank": 25,
+        "brand": "TOPTENKIDS",
+        "item_type": "플리스",
+        "sale_price": "19,900원",
+        "discount_rate": "50%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 펠릭스 플리스 스웨트셔츠": {
+        "rank": 23,
+        "brand": "TOPTENKIDS",
+        "item_type": "플리스",
+        "sale_price": "12,900원",
+        "discount_rate": "67%",
+        "rating": "5",
+        "review_count": "9"
+      },
+      "여아) 스쿠바 셔츠 레이어드스웨트셔츠": {
+        "rank": 24,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 스트레이트 데님 팬츠": {
+        "rank": 26,
+        "brand": "TOPTENKIDS",
+        "item_type": "청바지",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여아) 카라 스웨터 가디건": {
+        "rank": 27,
+        "brand": "TOPTENKIDS",
+        "item_type": "니트/스웨터",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      }
+    }
+  },
+  "남성": {
+    "20260223": {
+      "남성) 스쿠바 스트레이트 팬츠": {
+        "rank": 25,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "팬츠",
+        "sale_price": "35,900원",
+        "discount_rate": "28%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "남성) 셔닐 브이넥 가디건": {
+        "rank": 14,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "29,900원",
+        "discount_rate": "50%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "남성) 비건 스웨이드 재킷": {
+        "rank": 3,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "79,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) COOL Air 코튼 더블니트 T (긴팔)": {
+        "rank": 17,
+        "brand": "TOPTEN10",
+        "item_type": "니트/스웨터",
+        "sale_price": "19,900원",
+        "discount_rate": "33%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "공용) 벨로아 세서미 파자마 세트": {
+        "rank": 18,
+        "brand": "TOPTEN10",
+        "item_type": "세트",
+        "sale_price": "19,900원",
+        "discount_rate": "71%",
+        "rating": "4.8",
+        "review_count": "42"
+      },
+      "남성) 카라 퀼팅 점퍼": {
+        "rank": 6,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "49,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "3"
+      },
+      "남성) 테리 와이드 스웨트팬츠": {
+        "rank": 29,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "남성) 플리스 와이드 스웨트팬츠": {
+        "rank": 26,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "19,900원",
+        "discount_rate": "50%",
+        "rating": "4.9",
+        "review_count": "19"
+      },
+      "공용) 스쿠바 스웨트셔츠": {
+        "rank": 23,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "공용) 코튼 베이직 반팔 티 (3PACK)": {
+        "rank": 10,
+        "brand": "TOPTEN10",
+        "item_type": "티셔츠",
+        "sale_price": "19,900원",
+        "discount_rate": "",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) [피너츠] 테리 스웨트셔츠": {
+        "rank": 21,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "8"
+      },
+      "남성) 후드 MA-1 점퍼": {
+        "rank": 13,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "69,900원",
+        "discount_rate": "30%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "남성) 테리 스트레이트 스웨트팬츠": {
+        "rank": 16,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 플리스 그래픽 후드 집업": {
+        "rank": 20,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "19,900원",
+        "discount_rate": "71%",
+        "rating": "4.9",
+        "review_count": "43"
+      },
+      "공용) 벨로아 패밀리 라운지 세트": {
+        "rank": 22,
+        "brand": "TOPTEN10",
+        "item_type": "세트",
+        "sale_price": "19,900원",
+        "discount_rate": "71%",
+        "rating": "4.9",
+        "review_count": "97"
+      },
+      "남성) [마인드어데이 커버캣] 콜라보 플리스 스웨트셔츠": {
+        "rank": 24,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "15,900원",
+        "discount_rate": "68%",
+        "rating": "4.7",
+        "review_count": "6"
+      },
+      "남성) 스쿠바 하프 집업": {
+        "rank": 27,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "자켓/점퍼",
+        "sale_price": "35,900원",
+        "discount_rate": "28%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "남성) 플리스 카고 와이드 스웨트팬츠": {
+        "rank": 28,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "19,900원",
+        "discount_rate": "60%",
+        "rating": "5",
+        "review_count": "11"
+      },
+      "남성) 셔닐 카라 가디건": {
+        "rank": 30,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "29,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "3"
+      }
+    }
+  },
+  "베이비": {
+    "20260223": {
+      "공용) 유아 [피너츠] 스쿠바 셋업": {
+        "rank": 8,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 [피너츠] 더블니트 셋업": {
+        "rank": 22,
+        "brand": "TOPTENKIDS",
+        "item_type": "니트/스웨터",
+        "sale_price": "39,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 온에어 모이스처웜 셋업": {
+        "rank": 10,
+        "brand": "TOPTENKIDS",
+        "item_type": "내의/발열",
+        "sale_price": "7,900원",
+        "discount_rate": "73%",
+        "rating": "5",
+        "review_count": "3"
+      },
+      "공용) 유아 메쉬 바디수트 (반팔,2PACK)": {
+        "rank": 28,
+        "brand": "TOPTENKIDS",
+        "item_type": "티셔츠",
+        "sale_price": "15,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 [테스] 메쉬 바디수트 (민소매,2PACK)": {
+        "rank": 25,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "15,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여아) 유아 차윤아트 골벨로아 셋업": {
+        "rank": 12,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "15,900원",
+        "discount_rate": "73%",
+        "rating": "5",
+        "review_count": "6"
+      },
+      "공용) 유아 테리 스웨트셔츠": {
+        "rank": 26,
+        "brand": "TOPTENKIDS",
+        "item_type": "맨투맨",
+        "sale_price": "19,900원",
+        "discount_rate": "33%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여아) 유아 [피너츠] 테리 레이어드 원피스": {
+        "rank": 29,
+        "brand": "TOPTENKIDS",
+        "item_type": "원피스",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 [피너츠] 와플 셋업": {
+        "rank": 16,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "35,900원",
+        "discount_rate": "10%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 차윤아트 9부 바디수트 (2PACK)": {
+        "rank": 20,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "19,900원",
+        "discount_rate": "50%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 [피너츠] 스웨터": {
+        "rank": 18,
+        "brand": "TOPTENKIDS",
+        "item_type": "니트/스웨터",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 소프트모달 9부 셋업 (차윤아트)": {
+        "rank": 19,
+        "brand": "TOPTENKIDS",
+        "item_type": "미분류",
+        "sale_price": "19,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "공용) 유아 [테스] 메쉬 바디수트 (반팔,2PACK)": {
+        "rank": 23,
+        "brand": "TOPTENKIDS",
+        "item_type": "티셔츠",
+        "sale_price": "15,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) 유아 차윤아트 플러피플리스 셋업": {
+        "rank": 27,
+        "brand": "TOPTENKIDS",
+        "item_type": "플리스",
+        "sale_price": "25,900원",
+        "discount_rate": "56%",
+        "rating": "5",
+        "review_count": "4"
+      },
+      "공용) 유아 [피너츠] 후드집업": {
+        "rank": 30,
+        "brand": "TOPTENKIDS",
+        "item_type": "자켓/점퍼",
+        "sale_price": "29,900원",
+        "discount_rate": "25%",
+        "rating": "없음",
+        "review_count": "없음"
+      }
+    }
+  },
+  "전체": {
+    "20260223": {
+      "여성) COOL-AIR 브라 캐미솔": {
+        "rank": 1,
+        "brand": "TOPTEN10",
+        "item_type": "속옷",
+        "sale_price": "5,900원",
+        "discount_rate": "80%",
+        "rating": "4.7",
+        "review_count": "109"
+      },
+      "공용) 코튼 베이직 반팔 티 3PACK": {
+        "rank": 2,
+        "brand": "TOPTEN10",
+        "item_type": "티셔츠",
+        "sale_price": "19,900원",
+        "discount_rate": "",
+        "rating": "4.9",
+        "review_count": "628"
+      },
+      "여성) 스쿠바 스트레이트 팬츠": {
+        "rank": 30,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "팬츠",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "5"
+      },
+      "여성) 비건 스웨이드 재킷": {
+        "rank": 5,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "59,900원",
+        "discount_rate": "40%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "여성) COOL-AIR 코튼 브라 캐미솔": {
+        "rank": 29,
+        "brand": "TOPTEN10",
+        "item_type": "속옷",
+        "sale_price": "5,900원",
+        "discount_rate": "80%",
+        "rating": "4.6",
+        "review_count": "19"
+      },
+      "남성) 스쿠바 스트레이트 팬츠": {
+        "rank": 7,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "팬츠",
+        "sale_price": "35,900원",
+        "discount_rate": "28%",
+        "rating": "5",
+        "review_count": "4"
+      },
+      "여성) 소프트 테리 스트레이트 스웨트팬츠": {
+        "rank": 8,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "여성) 다이아 퀼팅 점퍼": {
+        "rank": 9,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "39,900원",
+        "discount_rate": "42%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "남성) 비건 스웨이드 재킷": {
+        "rank": 10,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "79,900원",
+        "discount_rate": "20%",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "남성) 셔닐 브이넥 가디건": {
+        "rank": 11,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "29,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "12"
+      },
+      "남성) 카라 퀼팅 점퍼": {
+        "rank": 12,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "49,900원",
+        "discount_rate": "50%",
+        "rating": "5",
+        "review_count": "3"
+      },
+      "여성) COOL-AIR 탱크탑(부분 심리스)": {
+        "rank": 14,
+        "brand": "TOPTEN10",
+        "item_type": "미분류",
+        "sale_price": "3,900원",
+        "discount_rate": "75%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "공용) COOL Air 코튼 더블니트 T (긴팔)": {
+        "rank": 25,
+        "brand": "TOPTEN10",
+        "item_type": "니트/스웨터",
+        "sale_price": "19,900원",
+        "discount_rate": "33%",
+        "rating": "5",
+        "review_count": "3"
+      },
+      "공용) 벨로아 세서미 파자마 세트": {
+        "rank": 16,
+        "brand": "TOPTEN10",
+        "item_type": "세트",
+        "sale_price": "19,900원",
+        "discount_rate": "71%",
+        "rating": "4.9",
+        "review_count": "50"
+      },
+      "여성) 스쿠바 릴랙스핏 스웨트셔츠": {
+        "rank": 28,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "4"
+      },
+      "남성) 테리 와이드 스웨트팬츠": {
+        "rank": 18,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "공용) 스쿠바 스웨트셔츠": {
+        "rank": 19,
+        "brand": "TOPTEN BALANCE",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "5",
+        "review_count": "2"
+      },
+      "남성) 플리스 와이드 스웨트팬츠": {
+        "rank": 20,
+        "brand": "TOPTEN10",
+        "item_type": "플리스",
+        "sale_price": "19,900원",
+        "discount_rate": "50%",
+        "rating": "4.9",
+        "review_count": "30"
+      },
+      "남성) 후드 MA-1 점퍼": {
+        "rank": 21,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "69,900원",
+        "discount_rate": "30%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "공용) 코튼 베이직 반팔 티 (3PACK)": {
+        "rank": 22,
+        "brand": "TOPTEN10",
+        "item_type": "티셔츠",
+        "sale_price": "19,900원",
+        "discount_rate": "",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "공용) [피너츠] 테리 스웨트셔츠": {
+        "rank": 23,
+        "brand": "TOPTEN10",
+        "item_type": "맨투맨",
+        "sale_price": "25,900원",
+        "discount_rate": "35%",
+        "rating": "4.9",
+        "review_count": "9"
+      },
+      "공용) 후드 바시티 패딩 점퍼": {
+        "rank": 24,
+        "brand": "TOPTENKIDS",
+        "item_type": "패딩",
+        "sale_price": "49,900원",
+        "discount_rate": "44%",
+        "rating": "5",
+        "review_count": "1"
+      },
+      "남성) MA-1 항공 점퍼": {
+        "rank": 26,
+        "brand": "TOPTEN10",
+        "item_type": "자켓/점퍼",
+        "sale_price": "29,900원",
+        "discount_rate": "76%",
+        "rating": "4.9",
+        "review_count": "80"
+      },
+      "공용) 밸런스 스트레치 조거 팬츠": {
+        "rank": 27,
+        "brand": "TOPTENKIDS",
+        "item_type": "팬츠",
+        "sale_price": "15,900원",
+        "discount_rate": "68%",
+        "rating": "5",
+        "review_count": "13"
+      }
+    }
+  }
+}

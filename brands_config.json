@@ -1,0 +1,62 @@
+{
+  "유니클로": {
+    "crawler_script": "uniqlo_ranking_v5.py",
+    "crawler_desc": "유니클로 전체 랭킹 크롤링",
+    "file_pattern": "유니클로_전체랭킹_이미지포함_V5_*.xlsx",
+    "color_hex": "C41E3A",
+    "color_chart": "#C41E3A",
+    "compare_sheets": ["WOMEN_모두보기", "MEN_모두보기"],
+    "category_map": {
+      "WOMEN_모두보기": "여성", "MEN_모두보기": "남성",
+      "KIDS_모두보기": "키즈", "BABY_모두보기": "베이비",
+      "WOMEN_상의": "여성_상의", "WOMEN_팬츠": "여성_팬츠",
+      "WOMEN_드레스 & 스커트": "여성_드레스&스커트",
+      "WOMEN_아우터": "여성_아우터", "WOMEN_이너웨어": "여성_이너웨어",
+      "WOMEN_홈웨어": "여성_홈웨어", "WOMEN_악세서리": "여성_악세서리",
+      "MEN_상의": "남성_상의", "MEN_팬츠": "남성_팬츠",
+      "MEN_아우터": "남성_아우터", "MEN_이너웨어": "남성_이너웨어",
+      "MEN_홈웨어": "남성_홈웨어", "MEN_악세서리": "남성_악세서리",
+      "KIDS_상의": "키즈_상의", "KIDS_팬츠": "키즈_팬츠",
+      "KIDS_아우터": "키즈_아우터", "KIDS_이너웨어": "키즈_이너웨어",
+      "BABY_모두보기": "베이비"
+    },
+    "excel_format": "uniqlo",
+    "gender_detect": "sheet_prefix"
+  },
+  "아르켓": {
+    "crawler_script": "arket_ranking_v5.py",
+    "crawler_desc": "아르켓 인기상품 크롤링",
+    "file_pattern": "아르켓_인기상품_판매순_*.xlsx",
+    "color_hex": "1A1A1A",
+    "color_chart": "#1A1A1A",
+    "compare_sheets": ["WOMEN", "MEN"],
+    "category_map": {"WOMEN": "여성", "MEN": "남성"},
+    "excel_format": "arket",
+    "gender_detect": "sheet_name"
+  },
+  "탑텐": {
+    "crawler_script": "topten_ranking_v3.py",
+    "crawler_desc": "탑텐 주간베스트 크롤링",
+    "file_pattern": "탑텐_주간베스트_이미지포함_V3_*.xlsx",
+    "color_hex": "0066CC",
+    "color_chart": "#0066CC",
+    "compare_sheets": ["여성", "남성"],
+    "category_map": {
+      "전체": "전체", "여성": "여성", "남성": "남성",
+      "키즈": "키즈", "베이비": "베이비"
+    },
+    "excel_format": "topten",
+    "gender_detect": "sheet_name"
+  },
+  "미쏘": {
+    "crawler_script": "mixxo_ranking.py",
+    "crawler_desc": "미쏘 이번주 베스트 크롤링",
+    "file_pattern": "미쏘_이번주베스트_이미지포함_*.xlsx",
+    "color_hex": "E91E63",
+    "color_chart": "#E91E63",
+    "compare_sheets": ["여성"],
+    "category_map": {"여성": "여성"},
+    "excel_format": "mixxo",
+    "gender_detect": "sheet_name"
+  }
+}

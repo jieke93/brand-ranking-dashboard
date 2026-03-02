@@ -1,0 +1,21 @@
+# 유니클로 랭킹 크롤러 & 대시보드 필요 패키지
+
+# 웹 스크래핑
+selenium>=4.15.0
+webdriver-manager>=4.0.1
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+
+# 엑셀 파일 생성
+openpyxl>=3.1.2
+
+# 이미지 처리
+Pillow>=10.1.0
+
+# HTML 파싱
+lxml>=4.9.3
+
+# 대시보드
+streamlit>=1.30.0
+pandas>=2.0.0
+plotly>=5.18.0

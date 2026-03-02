@@ -1,0 +1,837 @@
+{
+  "WOMEN": {
+    "20260223": {
+      "저지배럴레그팬츠(다리길이70~72Cm)": {
+        "rank": 1,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "2851"
+      },
+      "배기커브진(다리길이75cm)": {
+        "rank": 2,
+        "item_type": "진/데님",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "1095"
+      },
+      "스웨트와이드팬츠(다리길이66~72cm)": {
+        "rank": 3,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "1011"
+      },
+      "윈드블럭파카": {
+        "rank": 4,
+        "item_type": "파카",
+        "price": "69,900원",
+        "rating": "1.0",
+        "review_count": "94"
+      },
+      "AIRism코튼크루넥T(긴팔)": {
+        "rank": 5,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "539"
+      },
+      "립헨리넥T(긴팔)": {
+        "rank": 6,
+        "item_type": "티셔츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "71"
+      },
+      "와이드스트레이트진": {
+        "rank": 7,
+        "item_type": "진/데님",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "516"
+      },
+      "AIRism코튼오버사이즈크루넥T(5부)": {
+        "rank": 8,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "1497"
+      },
+      "케이블크루넥가디건": {
+        "rank": 9,
+        "item_type": "카디건",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "스웨트오버사이즈풀집파카": {
+        "rank": 10,
+        "item_type": "파카",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "28"
+      },
+      "와이드핏카고팬츠": {
+        "rank": 11,
+        "item_type": "카고팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "17"
+      },
+      "오버사이즈스웨트셔츠": {
+        "rank": 12,
+        "item_type": "맨투맨",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "354"
+      },
+      "배기진": {
+        "rank": 13,
+        "item_type": "진/데님",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "28"
+      },
+      "UV PROTECTION크루넥가디건(긴팔)": {
+        "rank": 14,
+        "item_type": "카디건",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "311"
+      },
+      "소프트립T(긴팔)": {
+        "rank": 15,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "377"
+      },
+      "워셔블밀라노립크루넥스웨터": {
+        "rank": 16,
+        "item_type": "니트/스웨터",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "314"
+      },
+      "스웨트스트레이트팬츠(다리길이69~72cm)": {
+        "rank": 17,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "34"
+      },
+      "배럴팬츠": {
+        "rank": 18,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "63"
+      },
+      "윈드블럭스탠드블루종": {
+        "rank": 19,
+        "item_type": "블루종",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "5"
+      },
+      "유틸리티재킷": {
+        "rank": 20,
+        "item_type": "재킷",
+        "price": "79,900원",
+        "rating": "1.0",
+        "review_count": "21"
+      },
+      "와플헨리넥T(긴팔)": {
+        "rank": 21,
+        "item_type": "티셔츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "104"
+      },
+      "AIRism와이어리스브라(울트라릴랙스)": {
+        "rank": 22,
+        "item_type": "에어리즘",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "614"
+      },
+      "데님릴렉스셔츠재킷": {
+        "rank": 23,
+        "item_type": "재킷",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "워크오버사이즈셔츠": {
+        "rank": 24,
+        "item_type": "셔츠/블라우스",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "워셔블니트립팬츠(다리길이66~69cm)": {
+        "rank": 25,
+        "item_type": "니트/스웨터",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "237"
+      },
+      "코튼미디스커트": {
+        "rank": 26,
+        "item_type": "스커트",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "3"
+      },
+      "스무드코튼크루넥스웨터": {
+        "rank": 27,
+        "item_type": "니트/스웨터",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "332"
+      },
+      "유틸리티쇼트재킷": {
+        "rank": 28,
+        "item_type": "재킷",
+        "price": "79,900원",
+        "rating": "1.0",
+        "review_count": "7"
+      },
+      "코튼리넨셔츠재킷": {
+        "rank": 29,
+        "item_type": "재킷",
+        "price": "59,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "스웨트오버사이즈풀파카": {
+        "rank": 30,
+        "item_type": "파카",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "310"
+      }
+    }
+  },
+  "MEN": {
+    "20260223": {
+      "스웨트와이드팬츠(다리길이66~72cm)": {
+        "rank": 1,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "1011"
+      },
+      "윈드블럭파카": {
+        "rank": 2,
+        "item_type": "파카",
+        "price": "69,900원",
+        "rating": "1.0",
+        "review_count": "94"
+      },
+      "AIRism코튼크루넥T(긴팔)": {
+        "rank": 3,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "539"
+      },
+      "집업블루종": {
+        "rank": 4,
+        "item_type": "블루종",
+        "price": "69,900원",
+        "rating": "1.0",
+        "review_count": "15"
+      },
+      "스트레이트진": {
+        "rank": 30,
+        "item_type": "진/데님",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "675"
+      },
+      "와이드스트레이트진": {
+        "rank": 6,
+        "item_type": "진/데님",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "516"
+      },
+      "AIRism코튼오버사이즈크루넥T(5부)": {
+        "rank": 7,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "1497"
+      },
+      "스웨트오버사이즈풀집파카": {
+        "rank": 8,
+        "item_type": "파카",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "28"
+      },
+      "와이드핏카고팬츠": {
+        "rank": 9,
+        "item_type": "카고팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "17"
+      },
+      "와이드핏치노팬츠(다리길이72.5~74.5cm)": {
+        "rank": 10,
+        "item_type": "치노",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "1054"
+      },
+      "오버사이즈스웨트셔츠": {
+        "rank": 11,
+        "item_type": "맨투맨",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "354"
+      },
+      "배기진": {
+        "rank": 12,
+        "item_type": "진/데님",
+        "price": "59,900원",
+        "rating": "1.0",
+        "review_count": "28"
+      },
+      "워셔블밀라노립크루넥스웨터": {
+        "rank": 13,
+        "item_type": "니트/스웨터",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "314"
+      },
+      "스웨트스트레이트팬츠(다리길이69~72cm)": {
+        "rank": 14,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "34"
+      },
+      "배럴팬츠": {
+        "rank": 15,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "63"
+      },
+      "유틸리티재킷": {
+        "rank": 16,
+        "item_type": "재킷",
+        "price": "79,900원",
+        "rating": "1.0",
+        "review_count": "21"
+      },
+      "와플헨리넥T(긴팔)": {
+        "rank": 17,
+        "item_type": "티셔츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "104"
+      },
+      "파라슈트팬츠": {
+        "rank": 18,
+        "item_type": "팬츠",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "3"
+      },
+      "워크오버사이즈셔츠": {
+        "rank": 19,
+        "item_type": "셔츠/블라우스",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "워셔블코튼블렌드크루넥스웨터": {
+        "rank": 20,
+        "item_type": "니트/스웨터",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "16"
+      },
+      "스무드코튼크루넥스웨터": {
+        "rank": 21,
+        "item_type": "니트/스웨터",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "332"
+      },
+      "포켓터블UV PROTECTION파카": {
+        "rank": 22,
+        "item_type": "파카",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "392"
+      },
+      "코튼리넨셔츠재킷": {
+        "rank": 23,
+        "item_type": "재킷",
+        "price": "59,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "스웨트오버사이즈풀파카": {
+        "rank": 24,
+        "item_type": "파카",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "310"
+      },
+      "스웨트셔츠": {
+        "rank": 25,
+        "item_type": "맨투맨",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "162"
+      },
+      "라운드미니숄더백": {
+        "rank": 26,
+        "item_type": "가방",
+        "price": "14,900원",
+        "rating": "1.0",
+        "review_count": "31"
+      },
+      "해링턴재킷": {
+        "rank": 27,
+        "item_type": "재킷",
+        "price": "89,900원",
+        "rating": "1.0",
+        "review_count": "16"
+      },
+      "데님셔츠": {
+        "rank": 28,
+        "item_type": "셔츠/블라우스",
+        "price": "49,900원",
+        "rating": "1.0",
+        "review_count": "29"
+      },
+      "SUPIMA COTTON T": {
+        "rank": 29,
+        "item_type": "미분류",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "292"
+      }
+    }
+  },
+  "KIDS": {
+    "20260223": {
+      "KIDS와이드핏스트레이트진(데님)": {
+        "rank": 1,
+        "item_type": "진/데님",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "157"
+      },
+      "GIRLS드라이스웨트커브팬츠": {
+        "rank": 2,
+        "item_type": "팬츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "68"
+      },
+      "KIDS드라이스웨트팬츠(카고)": {
+        "rank": 3,
+        "item_type": "카고팬츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "12"
+      },
+      "KIDS카고조거팬츠(무지)": {
+        "rank": 4,
+        "item_type": "카고팬츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "5"
+      },
+      "KIDS드라이스웨트풀집파카(무지)": {
+        "rank": 5,
+        "item_type": "파카",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "8"
+      },
+      "GIRLS AIRism퍼스트브라": {
+        "rank": 6,
+        "item_type": "에어리즘",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "KIDS스트레치이지팬츠": {
+        "rank": 7,
+        "item_type": "스웻팬츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "22"
+      },
+      "KIDS스트레치이지팬츠(데님)": {
+        "rank": 8,
+        "item_type": "진/데님",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "19"
+      },
+      "GIRLS드라이스웨트미니스코츠": {
+        "rank": 9,
+        "item_type": "미분류",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "KIDS드라이스웨트셔츠(그래픽A)": {
+        "rank": 10,
+        "item_type": "맨투맨",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "4"
+      },
+      "KIDS카고조거팬츠(샴브레이)": {
+        "rank": 11,
+        "item_type": "카고팬츠",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "KIDS AIRism코튼크루넥T": {
+        "rank": 12,
+        "item_type": "티셔츠",
+        "price": "12,900원",
+        "rating": "1.0",
+        "review_count": "114"
+      },
+      "KIDS AIRism코튼크루넥T(긴팔)": {
+        "rank": 13,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "38"
+      },
+      "KIDS드라이스웨트셔츠(그래픽D)": {
+        "rank": 14,
+        "item_type": "맨투맨",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "KIDS저지워크재킷": {
+        "rank": 15,
+        "item_type": "재킷",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "1"
+      },
+      "KIDS드라이스웨트팬츠": {
+        "rank": 16,
+        "item_type": "팬츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "27"
+      },
+      "GIRLS AIRism코튼블렌드브라캐미솔": {
+        "rank": 17,
+        "item_type": "에어리즘",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "40"
+      },
+      "KIDS드라이스웨트셔츠(그래픽B)": {
+        "rank": 18,
+        "item_type": "맨투맨",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "2"
+      },
+      "KIDS샴브레이셔츠": {
+        "rank": 19,
+        "item_type": "셔츠/블라우스",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "5"
+      },
+      "KIDS포켓터블UV PROTECTION파카(컬러블럭)": {
+        "rank": 20,
+        "item_type": "파카",
+        "price": "39,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "GIRLS AIRism심리스쇼츠(3P·복서)": {
+        "rank": 21,
+        "item_type": "숏팬츠",
+        "price": "12,900원",
+        "rating": "1.0",
+        "review_count": "6"
+      },
+      "KIDS AIRism마이크로메쉬탱크탑": {
+        "rank": 22,
+        "item_type": "탱크탑",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "1"
+      },
+      "KIDS AIRism코튼스트라이프크루넥T": {
+        "rank": 23,
+        "item_type": "티셔츠",
+        "price": "12,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "KIDS AIRism코튼크루넥T(그래픽A·긴팔)": {
+        "rank": 24,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "17"
+      },
+      "GIRLS립T(플라워)": {
+        "rank": 25,
+        "item_type": "미분류",
+        "price": "12,900원",
+        "rating": "1.0",
+        "review_count": "4"
+      },
+      "GIRLS Sanrio characters UT(그래픽T)B": {
+        "rank": 26,
+        "item_type": "미분류",
+        "price": "12,900원",
+        "rating": "1.0",
+        "review_count": "1"
+      },
+      "GIRLS Sanrio characters UT(그래픽T)A": {
+        "rank": 27,
+        "item_type": "미분류",
+        "price": "12,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "KIDS Jason Polan UT(그래픽T)A": {
+        "rank": 28,
+        "item_type": "미분류",
+        "price": "12,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "KIDS Minecraft스웨트후디A": {
+        "rank": 29,
+        "item_type": "후드",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "2"
+      },
+      "KIDS AIRism코튼크루넥T(그래픽D·긴팔)": {
+        "rank": 30,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "3"
+      }
+    }
+  },
+  "BABY": {
+    "20260223": {
+      "BT울트라스트레치스웨트셔츠": {
+        "rank": 1,
+        "item_type": "맨투맨",
+        "price": "14,900원",
+        "rating": "1.0",
+        "review_count": "4"
+      },
+      "BN코튼메쉬이너바디수트(반팔)": {
+        "rank": 23,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BN코튼메쉬이너바디수트(반팔)60cm": {
+        "rank": 6,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BN립커버올(긴팔)스트라이프": {
+        "rank": 4,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "26"
+      },
+      "BN커버올(반팔)A": {
+        "rank": 5,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BT울트라스트레치풀집후디": {
+        "rank": 7,
+        "item_type": "후드",
+        "price": "29,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BT Sanrio드라이파자마(반팔)A": {
+        "rank": 8,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "2"
+      },
+      "BN바디수트(긴팔·프린트)": {
+        "rank": 9,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "5"
+      },
+      "BN Joy Of Print코튼메쉬이너바디수트(반팔)": {
+        "rank": 10,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "65"
+      },
+      "BT크루넥T(긴팔)스트라이프": {
+        "rank": 11,
+        "item_type": "티셔츠",
+        "price": "14,900원",
+        "rating": "1.0",
+        "review_count": "9"
+      },
+      "BT레깅스(10부·립)": {
+        "rank": 12,
+        "item_type": "레깅스",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "21"
+      },
+      "BT Picture Book파자마(긴팔)미피": {
+        "rank": 13,
+        "item_type": "티셔츠",
+        "price": "29,900원",
+        "rating": "1.0",
+        "review_count": "14"
+      },
+      "BT Sanrio드라이파자마(반팔)C": {
+        "rank": 14,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BN바디수트(긴팔·프린트)60cm": {
+        "rank": 15,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "4"
+      },
+      "BN커버올(슬리브리스)C": {
+        "rank": 16,
+        "item_type": "탱크탑",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BT Picture Book드라이파자마(반팔)미피": {
+        "rank": 17,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BT레깅스(프린트)": {
+        "rank": 18,
+        "item_type": "레깅스",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "2"
+      },
+      "BN커버올(슬리브리스)A": {
+        "rank": 19,
+        "item_type": "탱크탑",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BN립커버올(긴팔)": {
+        "rank": 20,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "1.0",
+        "review_count": "21"
+      },
+      "BT Sanrio드라이파자마(반팔)B": {
+        "rank": 21,
+        "item_type": "티셔츠",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BN코튼메쉬이너바디수트(슬리브리스·프린트)": {
+        "rank": 22,
+        "item_type": "탱크탑",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "1"
+      },
+      "BN바디수트(긴팔)60cm": {
+        "rank": 24,
+        "item_type": "티셔츠",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "3"
+      },
+      "BT크루넥T(긴팔)프릴": {
+        "rank": 25,
+        "item_type": "티셔츠",
+        "price": "14,900원",
+        "rating": "1.0",
+        "review_count": "4"
+      },
+      "BT레깅스(10부·데님라이크)": {
+        "rank": 26,
+        "item_type": "진/데님",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "21"
+      },
+      "BT Picture Book UT(그래픽T·반팔)미피A": {
+        "rank": 27,
+        "item_type": "티셔츠",
+        "price": "12,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      },
+      "BT코튼메쉬탱크탑(2P·무지/패턴)": {
+        "rank": 28,
+        "item_type": "탱크탑",
+        "price": "12,900원",
+        "rating": "1.0",
+        "review_count": "24"
+      },
+      "BN Joy Of Print코튼메쉬이너바디수트(슬리브리스)": {
+        "rank": 29,
+        "item_type": "탱크탑",
+        "price": "9,900원",
+        "rating": "1.0",
+        "review_count": "58"
+      },
+      "BN커버올(슬리브리스)B": {
+        "rank": 30,
+        "item_type": "탱크탑",
+        "price": "19,900원",
+        "rating": "없음",
+        "review_count": "없음"
+      }
+    }
+  }
+}

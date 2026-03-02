@@ -1,0 +1,11 @@
+[server]
+# 모든 네트워크 인터페이스에서 접속 허용 (다른 기기에서 접속 가능)
+address = "0.0.0.0"
+port = 8501
+
+# 서버 시작 시 자동으로 브라우저 열기
+headless = true
+
+[browser]
+# 다른 기기에서 접속할 때 표시되는 주소 (자동 감지)
+gatherUsageStats = false
