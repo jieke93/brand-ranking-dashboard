@@ -529,7 +529,6 @@ tr:hover {{ background:#f0f4ff; }}
     <button class="cb" onclick="closeModal()">&times;</button>
     <img id="mimg" src=""/>
     <div class="mn" id="mname"></div>
-    <a class="db" id="mdl" href="" download="product.jpg">📥 이미지 다운로드</a>
   </div>
 </div>
 
@@ -548,9 +547,6 @@ function openModal(r, name) {{
   var src = 'data:image/jpeg;base64,' + IMG[r];
   document.getElementById('mimg').src = src;
   document.getElementById('mname').innerText = name;
-  var dl = document.getElementById('mdl');
-  dl.href = src;
-  dl.download = name + '.jpg';
   document.getElementById('modal').classList.add('show');
 }}
 function closeModal() {{
@@ -1715,7 +1711,10 @@ def _check_login():
             submitted = st.form_submit_button("로그인", use_container_width=True)
 
             if submitted:
-                if user_id == "JAKE0924" and user_pw == "9226":
+                # 환경변수 또는 Streamlit secrets에서 인증정보 로드
+                valid_id = st.secrets.get("LOGIN_ID", os.environ.get("LOGIN_ID", ""))
+                valid_pw = st.secrets.get("LOGIN_PW", os.environ.get("LOGIN_PW", ""))
+                if valid_id and valid_pw and user_id == valid_id and user_pw == valid_pw:
                     st.session_state['authenticated'] = True
                     st.rerun()
                 else:
@@ -1767,6 +1766,19 @@ def main():
             st.rerun()
 
         st.caption("크롤러 실행 후 새로고침하면\n최신 데이터가 반영됩니다.")
+
+        st.divider()
+        st.markdown(
+            "<div style='font-size:10px; color:#999; line-height:1.4;'>"
+            "⚖️ <b>면책 고지</b><br>"
+            "본 대시보드는 <b>내부 참고용</b>이며, "
+            "각 브랜드의 공식 서비스가 아닙니다.<br>"
+            "모든 상품 정보·이미지의 저작권은 "
+            "해당 브랜드에 귀속됩니다.<br>"
+            "상업적 사용 및 데이터 재배포를 금지합니다."
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     # 데이터 로드
     with st.spinner("데이터 로드 중..."):
