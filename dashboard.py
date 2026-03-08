@@ -918,7 +918,7 @@ def load_latest_excel_data():
         wb.close()
 
     df = pd.DataFrame(all_products) if all_products else pd.DataFrame()
-    return deduplicate_products(df)
+    return df
 
 
 def deduplicate_products(df):
