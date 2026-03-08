@@ -567,7 +567,7 @@ function closeModal() {{
 
 def _build_df_from_history():
     """xlsx 파일이 없을 때 JSON 히스토리에서 최신 날짜 데이터로 DataFrame 구성 (Cloud용 폴백)"""
-    history = load_all_history()
+    history = _load_all_history_raw()
     if not history:
         return pd.DataFrame()
 
@@ -603,9 +603,8 @@ def _build_df_from_history():
     return df
 
 
-@st.cache_data(ttl=300)
-def load_all_history():
-    """모든 히스토리 JSON 통합 로드"""
+def _load_all_history_raw():
+    """모든 히스토리 JSON 통합 로드 (내부 구현, 캐시 없음)"""
     combined = {}
 
     # 1) 통합 히스토리
@@ -649,6 +648,12 @@ def load_all_history():
                         combined[full_key][date_key] = products
 
     return combined
+
+
+@st.cache_data(ttl=300)
+def load_all_history():
+    """모든 히스토리 JSON 통합 로드 (캐싱 래퍼)"""
+    return _load_all_history_raw()
 
 
 @st.cache_data(ttl=300)
@@ -1854,26 +1859,36 @@ def main():
         )
 
     # 데이터 로드
-    with st.spinner("데이터 로드 중..."):
-        history = load_all_history()
-        df = load_latest_excel_data()
-        image_map = extract_all_product_images()
+    try:
+        with st.spinner("데이터 로드 중..."):
+            history = load_all_history()
+            df = load_latest_excel_data()
+            image_map = extract_all_product_images()
+    except Exception as e:
+        st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
+        history = {}
+        df = pd.DataFrame()
+        image_map = {}
 
     # 라우팅
-    if "종합" in page:
-        page_overview(df, history)
-    elif "브랜드" in page:
-        page_brand_detail(df, history, image_map)
-    elif "가격" in page:
-        page_price_compare(df)
-    elif "핵심" in page:
-        page_top_items(df, image_map)
-    elif "변동" in page:
-        page_ranking_trend(history, image_map)
-    elif "검색" in page:
-        page_search(df, image_map)
-    elif "AI" in page:
-        page_analysis()
+    try:
+        if "종합" in page:
+            page_overview(df, history)
+        elif "브랜드" in page:
+            page_brand_detail(df, history, image_map)
+        elif "가격" in page:
+            page_price_compare(df)
+        elif "핵심" in page:
+            page_top_items(df, image_map)
+        elif "변동" in page:
+            page_ranking_trend(history, image_map)
+        elif "검색" in page:
+            page_search(df, image_map)
+        elif "AI" in page:
+            page_analysis()
+    except Exception as e:
+        st.error(f"페이지 렌더링 중 오류: {e}")
+        st.exception(e)
 
 
 if __name__ == '__main__':
