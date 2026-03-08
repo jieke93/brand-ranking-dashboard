@@ -989,8 +989,11 @@ def get_compare_data(df, brand, gender):
 #  페이지: 종합 대시보드
 # ══════════════════════════════════════════════════════
 
-def page_overview(df, history):
+def page_overview(df, history, image_map=None):
     st.header(f"📊 {len(ALL_BRANDS)}사 브랜드 종합 대시보드")
+
+    if image_map is None:
+        image_map = {}
 
     if df.empty:
         st.warning("크롤링 데이터가 없습니다. 먼저 크롤러를 실행해주세요.")
@@ -1137,9 +1140,13 @@ def page_overview(df, history):
                         if items.empty:
                             continue
                         st.markdown(f"**{brand}** — {selected_type} ({len(items)}개)")
-                        item_table = items[['rank', 'name', 'price_str']].copy()
-                        item_table.columns = ['순위', '상품명', '가격']
-                        st.dataframe(item_table, use_container_width=True, hide_index=True)
+                        item_table = items[['rank', 'name', 'price_str', 'sheet']].copy()
+                        show_table = item_table[['rank', 'name', 'price_str']].copy()
+                        show_table.columns = ['순위', '상품명', '가격']
+                        bs_data = [(brand, s, r) for s, r in zip(item_table['sheet'], item_table['rank'])]
+                        render_image_table(show_table, image_map, rank_col='순위', name_col='상품명',
+                                           height=min(len(show_table)*38+60, 400), key_prefix=f'ov_{gender}_{brand}',
+                                           brand_sheet_data=bs_data)
 
 
 # ══════════════════════════════════════════════════════
@@ -1270,8 +1277,11 @@ def page_brand_detail(df, history, image_map=None):
 #  페이지: 가격 비교
 # ══════════════════════════════════════════════════════
 
-def page_price_compare(df):
+def page_price_compare(df, image_map=None):
     st.header(f"💰 {len(ALL_BRANDS)}사 가격 비교 분석")
+
+    if image_map is None:
+        image_map = {}
 
     if df.empty:
         st.warning("데이터가 없습니다.")
@@ -1890,9 +1900,12 @@ def _get_gender_overall_top20(df, brand, gender):
     return bdf
 
 
-def page_spao_compare(df):
+def page_spao_compare(df, image_map=None):
     st.header("🆚 SPAO 비교 분석")
     st.caption("각 브랜드 성별 전체 랭킹 TOP 20 기준으로 SPAO와 비교합니다.")
+
+    if image_map is None:
+        image_map = {}
 
     spao_in_df = df[df['brand'] == '스파오'] if not df.empty else pd.DataFrame()
 
@@ -2002,12 +2015,15 @@ def page_spao_compare(df):
     for tab, brand in zip(tabs, [b for b in ALL_BRANDS if b in brand_frames]):
         bdf = brand_frames[brand]
         with tab:
-            show_cols = ['rank', 'name', 'item_type', 'price_str']
+            show_cols = ['rank', 'name', 'item_type', 'price_str', 'sheet']
             available_cols = [c for c in show_cols if c in bdf.columns]
             show_df = bdf[available_cols].copy().sort_values('rank')
-            col_rename = {'rank': '순위', 'name': '상품명', 'item_type': '아이템타입', 'price_str': '가격'}
-            show_df = show_df.rename(columns=col_rename)
-            st.dataframe(show_df, use_container_width=True, hide_index=True)
+            display_df = show_df[['rank', 'name', 'item_type', 'price_str']].copy()
+            display_df.columns = ['순위', '상품명', '아이템타입', '가격']
+            sheet_vals = show_df['sheet'].values if 'sheet' in show_df.columns else ['']*len(show_df)
+            bs_data = [(brand, s, r) for s, r in zip(sheet_vals, show_df['rank'])]
+            render_image_table(display_df, image_map, rank_col='순위', name_col='상품명',
+                               height=450, key_prefix=f'spao_cmp_{brand}', brand_sheet_data=bs_data)
 
 
 
@@ -2253,11 +2269,11 @@ def main():
     # 라우팅
     try:
         if "종합" in page:
-            page_overview(df, history)
+            page_overview(df, history, image_map)
         elif "브랜드" in page:
             page_brand_detail(df, history, image_map)
         elif "가격" in page:
-            page_price_compare(df)
+            page_price_compare(df, image_map)
         elif "핵심" in page:
             page_top_items(df, image_map)
         elif "변동" in page:
@@ -2265,7 +2281,7 @@ def main():
         elif "검색" in page:
             page_search(df, image_map)
         elif "SPAO" in page:
-            page_spao_compare(df)
+            page_spao_compare(df, image_map)
         elif "AI" in page:
             page_analysis()
     except Exception as e:
