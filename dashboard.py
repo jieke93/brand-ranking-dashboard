@@ -1406,13 +1406,23 @@ def page_top_items(df, image_map=None):
 
     for ti, brand in enumerate(ALL_BRANDS):
         with tabs[ti]:
-            bdf = get_compare_data(df, brand, gender)
+            # 전체 랭킹 시트에서 TOP N 추출
+            bdf = _get_gender_overall_top20(df, brand, gender)
+            if bdf.empty:
+                # fallback: get_compare_data
+                bdf = get_compare_data(df, brand, gender)
             if bdf.empty:
                 st.info(f"{brand} 데이터 없음")
                 continue
 
-            top_raw = bdf.nsmallest(top_n, 'rank')[['rank', 'name', 'item_type', 'price_str', 'sheet']].copy()
-            top_df = top_raw[['rank', 'name', 'item_type', 'price_str']].copy()
+            top_raw = bdf.nsmallest(top_n, 'rank').drop_duplicates(subset='name').head(top_n).copy()
+            top_raw = top_raw[['rank', 'name', 'item_type', 'price_str', 'sheet']].copy()
+            # 핵심아이템 순위를 1~N으로 재부여
+            top_raw = top_raw.reset_index(drop=True)
+            top_raw['display_rank'] = range(1, len(top_raw) + 1)
+            original_ranks = top_raw['rank'].values.copy()
+
+            top_df = top_raw[['display_rank', 'name', 'item_type', 'price_str']].copy()
             top_df.columns = ['순위', '상품명', '아이템타입', '가격']
 
             # 필터링
@@ -1455,14 +1465,19 @@ def page_top_items(df, image_map=None):
             with cols[ci]:
                 color = BRAND_COLORS.get(brand, '#888')
                 st.markdown(f"<div style='background:{color};color:white;padding:6px;border-radius:6px;text-align:center;font-weight:bold;'>{brand}</div>", unsafe_allow_html=True)
-                bdf = get_compare_data(df, brand, gender)
+                bdf = _get_gender_overall_top20(df, brand, gender)
+                if bdf.empty:
+                    bdf = get_compare_data(df, brand, gender)
                 if bdf.empty:
                     st.caption("데이터 없음")
                     continue
-                top_raw = bdf.nsmallest(top_n, 'rank')[['rank', 'name', 'item_type', 'price_str', 'sheet']].copy()
+                top_raw = bdf.nsmallest(top_n, 'rank').drop_duplicates(subset='name').head(top_n).copy()
+                top_raw = top_raw[['rank', 'name', 'item_type', 'price_str', 'sheet']].copy()
+                top_raw = top_raw.reset_index(drop=True)
+                top_raw['display_rank'] = range(1, len(top_raw) + 1)
                 brand_tops[brand] = top_raw
                 for _, row in top_raw.iterrows():
-                    st.markdown(f"**{int(row['rank'])}**. {row['name'][:20]}  \n<span style='color:#888;font-size:0.85em;'>{row['item_type']} · {row['price_str']}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{int(row['display_rank'])}**. {row['name'][:20]}  \n<span style='color:#888;font-size:0.85em;'>{row['item_type']} · {row['price_str']}</span>", unsafe_allow_html=True)
 
         # 아래에 이미지 갤러리
         st.divider()
@@ -1475,9 +1490,10 @@ def page_top_items(df, image_map=None):
                     continue
                 top_raw = brand_tops[brand]
                 for _, row in top_raw.iterrows():
-                    rank_val = int(row['rank'])
+                    disp_rank = int(row['display_rank'])
+                    orig_rank = int(row['rank'])
                     sheet_val = row['sheet']
-                    key = (brand, sheet_val, rank_val)
+                    key = (brand, sheet_val, orig_rank)
                     img_val = image_map.get(key, '')
                     if img_val:
                         if img_val.startswith('url:'):
@@ -1487,12 +1503,12 @@ def page_top_items(df, image_map=None):
                         st.markdown(
                             f"<div style='margin-bottom:8px;'>"
                             f"<img src='{src}' style='width:100%;max-width:120px;border-radius:4px;'>"
-                            f"<br><span style='font-size:0.75em;'>{rank_val}. {row['name'][:15]}</span>"
+                            f"<br><span style='font-size:0.75em;'>{disp_rank}. {row['name'][:15]}</span>"
                             f"</div>",
                             unsafe_allow_html=True
                         )
                     else:
-                        st.caption(f"{rank_val}. {row['name'][:15]} (이미지 없음)")
+                        st.caption(f"{disp_rank}. {row['name'][:15]} (이미지 없음)")
 
 
 # ══════════════════════════════════════════════════════
