@@ -1626,6 +1626,36 @@ def page_ranking_trend(history, image_map=None):
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
 
+    # ── 현재 순위 테이블 + 이미지 (항상 표시) ──
+    st.subheader("📋 현재 순위 (이미지 포함)")
+    sheet_key = cat.replace(f'{brand}_', '')
+    latest_items_all = cat_data[cat_dates[-1]]
+    current_rows = []
+    for name, info in latest_items_all.items():
+        current_rows.append({
+            '순위': info['rank'], '상품명': name,
+            '아이템타입': info.get('item_type', ''),
+            '가격': info.get('price', ''),
+        })
+    if current_rows:
+        current_df = pd.DataFrame(current_rows).sort_values('순위').reset_index(drop=True)
+        # 필터링
+        crf1, crf2 = st.columns(2)
+        with crf1:
+            cr_types = sorted(current_df['아이템타입'].dropna().unique().tolist())
+            cr_type_f = st.multiselect("아이템타입 필터", cr_types, key='cr_type')
+        with crf2:
+            cr_name_f = st.text_input("상품명 검색", key='cr_name', placeholder="검색어 입력...")
+        if cr_type_f:
+            current_df = current_df[current_df['아이템타입'].isin(cr_type_f)]
+        if cr_name_f:
+            current_df = current_df[current_df['상품명'].str.contains(cr_name_f, case=False, na=False)]
+        st.caption(f"표시: {len(current_df)}개 상품")
+        bs_data_cr = [(brand, sheet_key, r) for r in current_df['순위']]
+        render_image_table(current_df, image_map, rank_col='순위', name_col='상품명',
+                           height=min(len(current_df) * 38 + 60, 600),
+                           key_prefix='cr_tbl', brand_sheet_data=bs_data_cr)
+
     # 변동 테이블
     if len(cat_dates) >= 2:
         st.subheader("변동 상세")
