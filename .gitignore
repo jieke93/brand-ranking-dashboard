@@ -7,6 +7,7 @@ __pycache__/
 *.xlsx
 !requirements.txt
 !README.md
+!runtime.txt
 .streamlit/secrets.toml
 product_images/
 product_images_hd/

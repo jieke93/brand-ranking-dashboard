@@ -1,9 +1,2 @@
-[server]
-# Streamlit Cloud에서는 address/port를 지정하지 않음 (Cloud가 자동 할당)
-# 로컬 실행 시에는 기본값 localhost:8501 사용
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-
 [browser]
 gatherUsageStats = false

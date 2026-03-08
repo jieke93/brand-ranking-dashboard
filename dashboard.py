@@ -250,8 +250,11 @@ def extract_all_product_images():
     반환: {(브랜드, 시트명, 순위): base64_string}
     부수효과: image_archive/ 에 상품명 기반 영구 보관 (이탈 상품용)
     """
-    for d in [IMG_CACHE_DIR, IMG_HD_DIR, IMG_ARCHIVE_DIR]:
-        os.makedirs(d, exist_ok=True)
+    try:
+        for d in [IMG_CACHE_DIR, IMG_HD_DIR, IMG_ARCHIVE_DIR]:
+            os.makedirs(d, exist_ok=True)
+    except (OSError, PermissionError):
+        pass  # Cloud 환경에서 디렉토리 생성 실패 시 무시
 
     image_map = {}  # (brand, sheet, rank) → base64
     name_map = {}   # (brand, name) → base64  (archive용)
@@ -1780,13 +1783,14 @@ def _check_login():
 
             if submitted:
                 # 환경변수 또는 Streamlit secrets에서 인증정보 로드
+                valid_id = ""
+                valid_pw = ""
                 try:
-                    valid_id = st.secrets.get("LOGIN_ID", "")
-                except (FileNotFoundError, Exception):
+                    if hasattr(st, 'secrets') and st.secrets is not None:
+                        valid_id = st.secrets.get("LOGIN_ID", "")
+                        valid_pw = st.secrets.get("LOGIN_PW", "")
+                except Exception:
                     valid_id = ""
-                try:
-                    valid_pw = st.secrets.get("LOGIN_PW", "")
-                except (FileNotFoundError, Exception):
                     valid_pw = ""
                 if not valid_id:
                     valid_id = os.environ.get("LOGIN_ID", "")
@@ -1802,15 +1806,22 @@ def _check_login():
 
 
 def main():
-    st.set_page_config(
-        page_title="3사 브랜드 랭킹 대시보드",
-        page_icon="📊",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
+    try:
+        st.set_page_config(
+            page_title="3사 브랜드 랭킹 대시보드",
+            page_icon="📊",
+            layout="wide",
+            initial_sidebar_state="expanded",
+        )
+    except Exception:
+        pass  # 이미 set_page_config가 호출된 경우
 
-    # 로그인 체크
-    if not _check_login():
+    try:
+        # 로그인 체크
+        if not _check_login():
+            return
+    except Exception as e:
+        st.error(f"로그인 처리 중 오류: {e}")
         return
 
     # CSS
@@ -1892,4 +1903,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        st.error(f"앱 실행 중 오류가 발생했습니다: {e}")
+        st.code(traceback.format_exc())
