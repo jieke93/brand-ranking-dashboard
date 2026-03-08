@@ -37,6 +37,7 @@ BRAND_COLORS = {
     '아르켓':   '#1A1A1A',  # 블랙
     '탑텐':     '#0066CC',  # 블루
     '미쏘':     '#E91E63',  # 핑크
+    '스파오':   '#F39C12',  # 오렌지
 }
 
 # ─── 브랜드별 설정 ───
@@ -459,6 +460,63 @@ def get_archived_image_b64(brand, product_name):
     return None
 
 
+@st.cache_data(ttl=600)
+def load_spao_image_map():
+    """SPAO 이미지 맵 반환: {(brand, sheet, rank): url_or_base64}
+    
+    1순위: image_archive/에서 base64로 로드
+    2순위: product_images_hd/에서 base64로 로드
+    3순위: image_url을 'url:https://...' 형태로 저장 (HTML에서 직접 사용)
+    """
+    spao_file = os.path.join(WORK_DIR, 'spao_history.json')
+    if not os.path.exists(spao_file):
+        return {}
+
+    try:
+        with open(spao_file, 'r', encoding='utf-8') as f:
+            history = json.load(f)
+    except (json.JSONDecodeError, Exception):
+        return {}
+
+    spao_images = {}
+    for cat_key, dates_data in history.items():
+        if not dates_data:
+            continue
+        latest_date = max(dates_data.keys())
+        items = dates_data[latest_date]
+        parts = cat_key.split('_', 1)
+        sheet = parts[1] if len(parts) > 1 else ''
+
+        for name, info in items.items():
+            if not isinstance(info, dict):
+                continue
+            rank = info.get('rank', 0)
+            if not rank:
+                continue
+
+            key = ('스파오', sheet, int(rank))
+            if key in spao_images:
+                continue
+
+            # 1순위: archive에서 확인
+            safe_name = safe_filename(f"스파오_{name[:30]}")
+            archive_path = os.path.join(IMG_ARCHIVE_DIR, f"{safe_name}.jpg")
+            if os.path.exists(archive_path):
+                try:
+                    with open(archive_path, 'rb') as f:
+                        spao_images[key] = base64.b64encode(f.read()).decode('utf-8')
+                    continue
+                except Exception:
+                    pass
+
+            # 2순위: image_url을 URL 마커와 함께 저장
+            image_url = info.get('image_url', '')
+            if image_url:
+                spao_images[key] = f'url:{image_url}'
+
+    return spao_images
+
+
 def augment_image_map_from_archive(image_map, df):
     """archive 이미지를 상품명 매칭으로 image_map에 보충 (HD 이미지 없는 브랜드/상품용)
     
@@ -637,7 +695,9 @@ tr.has-img {{ cursor:pointer; }}
 {img_js}
 function selectRow(r, name) {{
   if (!IMG[r]) return;
-  document.getElementById('pimg').src = 'data:image/jpeg;base64,' + IMG[r];
+  var val = IMG[r];
+  var src = val.startsWith('url:') ? val.substring(4) : 'data:image/jpeg;base64,' + val;
+  document.getElementById('pimg').src = src;
   document.getElementById('pname').innerText = name;
   // 순위 정보 표시
   var row = document.querySelector('tr[data-row="'+r+'"]');
@@ -1627,16 +1687,25 @@ def page_search(df, image_map=None):
     if image_map is None:
         image_map = {}
 
+    # SPAO 데이터를 df에 통합
+    spao_df = load_spao_data()
+    if not spao_df.empty:
+        spao_for_merge = spao_df[['brand', 'category', 'sheet', 'rank', 'name', 'item_type', 'price', 'price_str']].copy()
+        if 'date' not in spao_for_merge.columns:
+            spao_for_merge['date'] = ''
+        df = pd.concat([df, spao_for_merge], ignore_index=True)
+
     if df.empty:
         st.warning("데이터가 없습니다.")
         return
 
+    all_brands = BRAND_LIST + ['스파오']
     query = st.text_input("검색어 입력 (상품명, 아이템타입 등)", placeholder="예: 자켓, 패딩, shirt...")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        brand_filter = st.multiselect("브랜드", BRAND_LIST,
-                                       default=BRAND_LIST)
+        brand_filter = st.multiselect("브랜드", all_brands,
+                                       default=all_brands)
     with col2:
         types = df['item_type'].unique().tolist()
         type_filter = st.multiselect("아이템타입", sorted(types))
@@ -2251,6 +2320,10 @@ def main():
             image_map = extract_all_product_images()
             # archive 이미지로 보충 (HD 이미지 없는 유니클로·아르켓 등)
             image_map = augment_image_map_from_archive(image_map, df)
+            # SPAO 이미지 통합 (archive → URL fallback)
+            spao_images = load_spao_image_map()
+            if spao_images:
+                image_map.update(spao_images)
     except Exception as e:
         st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
         history = {}
