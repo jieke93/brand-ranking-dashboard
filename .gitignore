@@ -10,7 +10,5 @@ __pycache__/
 !runtime.txt
 .streamlit/secrets.toml
 product_images/
-product_images_hd/
-image_archive/
 page_source.html
 api_response.json
