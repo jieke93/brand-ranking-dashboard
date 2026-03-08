@@ -1401,9 +1401,9 @@ def page_top_items(df, image_map=None):
     if image_map is None:
         image_map = {}
 
-    # 핵심아이템에서는 중복 제거 적용
-    if not df.empty:
-        df = deduplicate_products(df)
+    # 중복 제거는 _get_gender_overall_top20 이후 결과에서 name 기준으로 적용
+    # (전체 df에 먼저 dedup하면 유니클로 "모두보기" 시트 항목이 세부카테고리로 대체되어 누락됨)
+    df_original = df.copy() if not df.empty else df
 
     if df.empty:
         st.warning("데이터가 없습니다.")
@@ -1416,11 +1416,11 @@ def page_top_items(df, image_map=None):
 
     for ti, brand in enumerate(ALL_BRANDS):
         with tabs[ti]:
-            # 전체 랭킹 시트에서 TOP N 추출
-            bdf = _get_gender_overall_top20(df, brand, gender)
+            # 전체 랭킹 시트에서 TOP N 추출 (원본 df 사용)
+            bdf = _get_gender_overall_top20(df_original, brand, gender)
             if bdf.empty:
                 # fallback: get_compare_data
-                bdf = get_compare_data(df, brand, gender)
+                bdf = get_compare_data(df_original, brand, gender)
             if bdf.empty:
                 st.info(f"{brand} 데이터 없음")
                 continue
@@ -1475,9 +1475,9 @@ def page_top_items(df, image_map=None):
             with cols[ci]:
                 color = BRAND_COLORS.get(brand, '#888')
                 st.markdown(f"<div style='background:{color};color:white;padding:6px;border-radius:6px;text-align:center;font-weight:bold;'>{brand}</div>", unsafe_allow_html=True)
-                bdf = _get_gender_overall_top20(df, brand, gender)
+                bdf = _get_gender_overall_top20(df_original, brand, gender)
                 if bdf.empty:
-                    bdf = get_compare_data(df, brand, gender)
+                    bdf = get_compare_data(df_original, brand, gender)
                 if bdf.empty:
                     st.caption("데이터 없음")
                     continue
