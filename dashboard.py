@@ -434,6 +434,56 @@ def get_archived_image_b64(brand, product_name):
     return None
 
 
+def augment_image_map_from_archive(image_map, df):
+    """archive 이미지를 상품명 매칭으로 image_map에 보충 (HD 이미지 없는 브랜드/상품용)
+    
+    product_images_hd 에 이미지가 없는 유니클로·아르켓 등도
+    image_archive 에 상품명 기반 이미지가 있으면 매칭하여 채워넣는다.
+    """
+    if df is None or df.empty:
+        return image_map
+
+    # archive 파일 → {(brand, safe_name): base64} 로드
+    archive_files = glob.glob(os.path.join(IMG_ARCHIVE_DIR, '*.jpg'))
+    if not archive_files:
+        return image_map
+
+    archive_cache = {}  # safe_filename_without_ext → base64
+    for fpath in archive_files:
+        fname = os.path.basename(fpath)
+        name_key = fname.rsplit('.', 1)[0]  # 확장자 제거
+        try:
+            with open(fpath, 'rb') as f:
+                archive_cache[name_key] = base64.b64encode(f.read()).decode('utf-8')
+        except Exception:
+            continue
+
+    if not archive_cache:
+        return image_map
+
+    augmented = dict(image_map)
+    filled = 0
+    for _, row in df.iterrows():
+        brand = row.get('brand', '')
+        sheet = row.get('sheet', '')
+        rank = row.get('rank', 0)
+        name = row.get('name', '')
+        if not brand or not name or not rank:
+            continue
+
+        key = (brand, sheet, int(rank))
+        if key in augmented:
+            continue  # 이미 HD 이미지 있음
+
+        # archive에서 상품명 매칭 시도
+        safe_key = safe_filename(f"{brand}_{name[:30]}")
+        if safe_key in archive_cache:
+            augmented[key] = archive_cache[safe_key]
+            filled += 1
+
+    return augmented
+
+
 def get_image_b64(image_map, brand, sheet, rank):
     """이미지 base64 조회 (rank 기반)"""
     try:
@@ -1878,6 +1928,8 @@ def main():
             history = load_all_history()
             df = load_latest_excel_data()
             image_map = extract_all_product_images()
+            # archive 이미지로 보충 (HD 이미지 없는 유니클로·아르켓 등)
+            image_map = augment_image_map_from_archive(image_map, df)
     except Exception as e:
         st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
         history = {}
