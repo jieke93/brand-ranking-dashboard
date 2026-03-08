@@ -1950,7 +1950,6 @@ def page_spao_compare(df, image_map=None):
     # ══════════════  아이템타입 비교 (브랜드별)  ══════════════
     st.subheader("📊 아이템타입 비교")
 
-    # 브랜드별 아이템타입 카운트 집계
     type_rows = []
     for brand, bdf in brand_frames.items():
         counts = bdf['item_type'].value_counts()
@@ -1967,63 +1966,46 @@ def page_spao_compare(df, image_map=None):
         fig.update_layout(height=420, xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
 
-    # 피벗 테이블
-    pivot = type_chart_df.pivot_table(index='아이템타입', columns='브랜드', values='상품수', fill_value=0)
-    pivot = pivot.astype(int)
-    # 브랜드 순서 정렬
-    ordered_cols = [b for b in ALL_BRANDS if b in pivot.columns]
-    pivot = pivot[ordered_cols]
-    pivot['합계'] = pivot.sum(axis=1)
-    pivot = pivot.sort_values('합계', ascending=False)
-    st.dataframe(pivot, use_container_width=True, height=400)
-
     st.divider()
 
-    # ══════════════  가격대 비교  ══════════════
-    st.subheader("💰 가격대 비교")
+    # ══════════════  각 브랜드별 SPAO에 없는 아이템 ══════════════
+    st.subheader("🔍 브랜드별 SPAO 랭킹에 없는 아이템타입")
+    st.caption("각 브랜드 TOP20에는 있지만 SPAO TOP20에는 없는 아이템타입의 상품 리스트")
 
-    price_bins = [0, 10000, 20000, 30000, 50000, 70000, 100000, float('inf')]
-    price_labels = ['~1만', '1~2만', '2~3만', '3~5만', '5~7만', '7~10만', '10만+']
+    spao_types = set()
+    if '스파오' in brand_frames:
+        spao_types = set(brand_frames['스파오']['item_type'].unique())
 
-    price_rows = []
-    for brand, bdf in brand_frames.items():
-        bp = bdf[bdf['price'] > 0].copy()
-        if bp.empty:
-            continue
-        bp['가격대'] = pd.cut(bp['price'], bins=price_bins, labels=price_labels, right=False)
-        for label in price_labels:
-            cnt = len(bp[bp['가격대'] == label])
-            if cnt > 0:
-                price_rows.append({'가격대': label, '브랜드': brand, '상품수': cnt})
+    other_brands = [b for b in ALL_BRANDS if b != '스파오' and b in brand_frames]
 
-    if price_rows:
-        price_chart_df = pd.DataFrame(price_rows)
-        fig_price = px.bar(
-            price_chart_df, x='가격대', y='상품수', color='브랜드', barmode='group',
-            color_discrete_map=BRAND_COLORS,
-            title=f'{gender} TOP20 가격대 분포 비교',
-        )
-        fig_price.update_layout(height=380)
-        st.plotly_chart(fig_price, use_container_width=True)
+    if not other_brands:
+        st.info("비교할 다른 브랜드 데이터가 없습니다.")
+    else:
+        tabs = st.tabs(other_brands)
+        for tab, brand in zip(tabs, other_brands):
+            with tab:
+                bdf = brand_frames[brand]
+                brand_types = set(bdf['item_type'].unique())
+                missing_types = brand_types - spao_types
 
-    st.divider()
+                if not missing_types:
+                    st.success(f"{brand} TOP20의 모든 아이템타입이 SPAO에도 있습니다!")
+                    continue
 
-    # ══════════════  브랜드별 TOP 20 목록  ══════════════
-    st.subheader("📋 브랜드별 TOP 20 목록")
+                st.markdown(f"**SPAO에 없는 아이템타입**: {', '.join(sorted(missing_types))}")
 
-    tabs = st.tabs([b for b in ALL_BRANDS if b in brand_frames])
-    for tab, brand in zip(tabs, [b for b in ALL_BRANDS if b in brand_frames]):
-        bdf = brand_frames[brand]
-        with tab:
-            show_cols = ['rank', 'name', 'item_type', 'price_str', 'sheet']
-            available_cols = [c for c in show_cols if c in bdf.columns]
-            show_df = bdf[available_cols].copy().sort_values('rank')
-            display_df = show_df[['rank', 'name', 'item_type', 'price_str']].copy()
-            display_df.columns = ['순위', '상품명', '아이템타입', '가격']
-            sheet_vals = show_df['sheet'].values if 'sheet' in show_df.columns else ['']*len(show_df)
-            bs_data = [(brand, s, r) for s, r in zip(sheet_vals, show_df['rank'])]
-            render_image_table(display_df, image_map, rank_col='순위', name_col='상품명',
-                               height=450, key_prefix=f'spao_cmp_{brand}', brand_sheet_data=bs_data)
+                # 해당 아이템타입 상품들 리스트 + 이미지
+                missing_items = bdf[bdf['item_type'].isin(missing_types)].sort_values(['item_type', 'rank'])
+                show_cols = ['rank', 'name', 'item_type', 'price_str', 'sheet']
+                available_cols = [c for c in show_cols if c in missing_items.columns]
+                show_df = missing_items[available_cols].copy()
+                display_df = show_df[['rank', 'name', 'item_type', 'price_str']].copy()
+                display_df.columns = ['순위', '상품명', '아이템타입', '가격']
+                sheet_vals = show_df['sheet'].values if 'sheet' in show_df.columns else [''] * len(show_df)
+                bs_data = [(brand, s, r) for s, r in zip(sheet_vals, show_df['rank'])]
+                render_image_table(display_df, image_map, rank_col='순위', name_col='상품명',
+                                   height=min(len(display_df) * 38 + 60, 500),
+                                   key_prefix=f'spao_miss_{brand}', brand_sheet_data=bs_data)
 
 
 
