@@ -342,7 +342,10 @@ def extract_all_product_images():
         return image_map
 
     # 3단계: 캐시 없으면 엑셀에서 추출 (최초 1회) + 업스케일 저장
-    from openpyxl import load_workbook
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return image_map
 
     for brand_name, config in BRAND_CONFIG.items():
         pattern = os.path.join(WORK_DIR, config['file_pattern'])
@@ -562,6 +565,44 @@ function closeModal() {{
 #  데이터 로드 (캐싱)
 # ══════════════════════════════════════════════════════
 
+def _build_df_from_history():
+    """xlsx 파일이 없을 때 JSON 히스토리에서 최신 날짜 데이터로 DataFrame 구성 (Cloud용 폴백)"""
+    history = load_all_history()
+    if not history:
+        return pd.DataFrame()
+
+    all_products = []
+    for full_key, dates_data in history.items():
+        if not dates_data:
+            continue
+        latest_date = max(dates_data.keys())
+        items = dates_data[latest_date]
+
+        # full_key 형태: "브랜드_카테고리" (예: 유니클로_WOMEN_모두보기)
+        parts = full_key.split('_', 1)
+        brand = parts[0]
+        sheet = parts[1] if len(parts) > 1 else ''
+        cat_map = BRAND_CONFIG.get(brand, {}).get('category_map', {})
+        mapped_cat = cat_map.get(sheet, sheet)
+
+        for name, info in items.items():
+            if isinstance(info, dict):
+                all_products.append({
+                    'brand': brand, 'category': mapped_cat,
+                    'sheet': sheet, 'rank': info.get('rank', 0),
+                    'name': name,
+                    'item_type': info.get('item_type', classify_item_type(name, brand)),
+                    'price': info.get('price', 0),
+                    'price_str': str(info.get('price', '')),
+                    'date': latest_date,
+                })
+
+    df = pd.DataFrame(all_products) if all_products else pd.DataFrame()
+    if not df.empty:
+        df = deduplicate_products(df)
+    return df
+
+
 @st.cache_data(ttl=300)
 def load_all_history():
     """모든 히스토리 JSON 통합 로드"""
@@ -570,10 +611,13 @@ def load_all_history():
     # 1) 통합 히스토리
     fp = os.path.join(WORK_DIR, 'all_brands_history.json')
     if os.path.exists(fp):
-        with open(fp, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            for k, v in data.items():
-                combined[k] = v
+        try:
+            with open(fp, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for k, v in data.items():
+                    combined[k] = v
+        except (json.JSONDecodeError, Exception):
+            pass
 
     # 2) 개별 히스토리 (보완)
     individual = {
@@ -585,8 +629,11 @@ def load_all_history():
         fp = os.path.join(WORK_DIR, filename)
         if not os.path.exists(fp):
             continue
-        with open(fp, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        try:
+            with open(fp, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, Exception):
+            continue
         for cat_key, dates_data in data.items():
             full_key = f"{brand}_{cat_key}"
             # 이미 더 세분화된 키(예: 유니클로_MEN_모두보기)가 있으면
@@ -606,8 +653,21 @@ def load_all_history():
 
 @st.cache_data(ttl=300)
 def load_latest_excel_data():
-    """최신 크롤링 엑셀 데이터 로드 → DataFrame"""
-    from openpyxl import load_workbook
+    """최신 크롤링 엑셀 데이터 로드 → DataFrame (xlsx 없으면 JSON 히스토리에서 구성)"""
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return _build_df_from_history()
+
+    # xlsx 파일이 하나도 없으면 JSON 히스토리에서 구성
+    has_any_xlsx = False
+    for config in BRAND_CONFIG.values():
+        pattern = os.path.join(WORK_DIR, config['file_pattern'])
+        if glob.glob(pattern):
+            has_any_xlsx = True
+            break
+    if not has_any_xlsx:
+        return _build_df_from_history()
     all_products = []
 
     for brand_name, config in BRAND_CONFIG.items():
@@ -1559,8 +1619,11 @@ def _load_analysis_history():
     """분석 히스토리 JSON 로드 (캐싱)"""
     fp = os.path.join(WORK_DIR, 'analysis_history.json')
     if os.path.exists(fp):
-        with open(fp, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(fp, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, Exception):
+            pass
     return {}
 
 
@@ -1712,8 +1775,18 @@ def _check_login():
 
             if submitted:
                 # 환경변수 또는 Streamlit secrets에서 인증정보 로드
-                valid_id = st.secrets.get("LOGIN_ID", os.environ.get("LOGIN_ID", ""))
-                valid_pw = st.secrets.get("LOGIN_PW", os.environ.get("LOGIN_PW", ""))
+                try:
+                    valid_id = st.secrets.get("LOGIN_ID", "")
+                except (FileNotFoundError, Exception):
+                    valid_id = ""
+                try:
+                    valid_pw = st.secrets.get("LOGIN_PW", "")
+                except (FileNotFoundError, Exception):
+                    valid_pw = ""
+                if not valid_id:
+                    valid_id = os.environ.get("LOGIN_ID", "")
+                if not valid_pw:
+                    valid_pw = os.environ.get("LOGIN_PW", "")
                 if valid_id and valid_pw and user_id == valid_id and user_pw == valid_pw:
                     st.session_state['authenticated'] = True
                     st.rerun()
