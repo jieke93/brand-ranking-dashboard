@@ -758,8 +758,6 @@ def _build_df_from_history():
                 })
 
     df = pd.DataFrame(all_products) if all_products else pd.DataFrame()
-    if not df.empty:
-        df = deduplicate_products(df)
     return df
 
 
@@ -994,6 +992,10 @@ def page_overview(df, history, image_map=None):
 
     if image_map is None:
         image_map = {}
+
+    # 종합 대시보드에서는 중복 제거 적용
+    if not df.empty:
+        df = deduplicate_products(df)
 
     if df.empty:
         st.warning("크롤링 데이터가 없습니다. 먼저 크롤러를 실행해주세요.")
@@ -1283,6 +1285,10 @@ def page_price_compare(df, image_map=None):
     if image_map is None:
         image_map = {}
 
+    # 가격 비교에서는 중복 제거 적용
+    if not df.empty:
+        df = deduplicate_products(df)
+
     if df.empty:
         st.warning("데이터가 없습니다.")
         return
@@ -1394,6 +1400,10 @@ def page_top_items(df, image_map=None):
 
     if image_map is None:
         image_map = {}
+
+    # 핵심아이템에서는 중복 제거 적용
+    if not df.empty:
+        df = deduplicate_products(df)
 
     if df.empty:
         st.warning("데이터가 없습니다.")
@@ -1949,7 +1959,7 @@ def _get_gender_overall_top20(df, brand, gender):
 
 def page_spao_compare(df, image_map=None):
     st.header("🆚 SPAO 비교 분석")
-    st.caption("각 브랜드 성별 전체 랭킹 TOP 20 기준으로 SPAO와 비교합니다.")
+    st.caption("각 브랜드 성별 전체 랭킹 TOP 20 기준 · 유형 + 가격 + 이미지 종합 비교")
 
     if image_map is None:
         image_map = {}
@@ -1982,80 +1992,360 @@ def page_spao_compare(df, image_map=None):
 
     st.divider()
 
-    # ══════════════  요약 KPI  ══════════════
+    # ══════════════  1. 요약 KPI  ══════════════
     cols = st.columns(len(brand_frames))
     for i, (brand, bdf) in enumerate(brand_frames.items()):
         avg_price = bdf['price'].mean()
+        min_price = bdf['price'].min()
+        max_price = bdf['price'].max()
+        type_count = bdf['item_type'].nunique()
         color = BRAND_COLORS.get(brand, '#888888')
+        spao_avg = brand_frames['스파오']['price'].mean() if '스파오' in brand_frames else 0
+        diff_pct = ((avg_price - spao_avg) / spao_avg * 100) if spao_avg > 0 and brand != '스파오' else 0
+        diff_str = f"<span style='font-size:11px;color:{'#e74c3c' if diff_pct > 0 else '#27ae60'};'>SPAO 대비 {diff_pct:+.1f}%</span>" if brand != '스파오' else "<span style='font-size:11px;color:#ddd;'>기준</span>"
         cols[i].markdown(
-            f"""<div style="background:{color};color:white;padding:10px;border-radius:8px;text-align:center;">
-            <b>{brand}</b><br>{len(bdf)}개 · 평균 {avg_price:,.0f}원</div>""",
+            f"""<div style="background:{color};color:white;padding:12px;border-radius:8px;text-align:center;">
+            <b style='font-size:15px;'>{brand}</b><br>
+            <span style='font-size:20px;font-weight:bold;'>{len(bdf)}개</span><br>
+            <span style='font-size:12px;'>평균 {avg_price:,.0f}원</span><br>
+            <span style='font-size:11px;'>{min_price:,.0f}~{max_price:,.0f}원 · {type_count}유형</span><br>
+            {diff_str}
+            </div>""",
             unsafe_allow_html=True)
 
     st.divider()
 
-    # ══════════════  아이템타입 비교 (브랜드별)  ══════════════
-    st.subheader("📊 아이템타입 비교")
+    # ═══════════════════════════════════════════
+    #  탭 구조: 유형분석 | 가격분석 | 이미지비교 | 갭분석
+    # ═══════════════════════════════════════════
+    main_tabs = st.tabs(["📊 아이템유형 분석", "💰 가격 심층 분석", "🖼️ TOP 상품 이미지 비교", "🔍 SPAO 갭(Gap) 분석"])
 
-    type_rows = []
-    for brand, bdf in brand_frames.items():
-        counts = bdf['item_type'].value_counts()
-        for t, c in counts.items():
-            type_rows.append({'브랜드': brand, '아이템타입': t, '상품수': int(c)})
-    type_chart_df = pd.DataFrame(type_rows)
+    # ──────────────── 탭1: 아이템유형 분석 ────────────────
+    with main_tabs[0]:
+        st.subheader("📊 아이템유형 구성 비교")
 
-    if not type_chart_df.empty:
-        fig = px.bar(
-            type_chart_df, x='아이템타입', y='상품수', color='브랜드', barmode='group',
-            color_discrete_map=BRAND_COLORS,
-            title=f'{gender} 전체랭킹 TOP20 — 아이템타입별 상품 수',
-        )
-        fig.update_layout(height=420, xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
+        type_rows = []
+        for brand, bdf in brand_frames.items():
+            counts = bdf['item_type'].value_counts()
+            total = len(bdf)
+            for t, c in counts.items():
+                type_rows.append({'브랜드': brand, '아이템타입': t, '상품수': int(c),
+                                  '비중(%)': round(c / total * 100, 1)})
+        type_chart_df = pd.DataFrame(type_rows)
 
-    st.divider()
+        if not type_chart_df.empty:
+            # 상품 수 그룹 바 차트
+            fig = px.bar(
+                type_chart_df, x='아이템타입', y='상품수', color='브랜드', barmode='group',
+                color_discrete_map=BRAND_COLORS,
+                title=f'{gender} TOP20 — 아이템타입별 상품 수',
+            )
+            fig.update_layout(height=420, xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
 
-    # ══════════════  각 브랜드별 SPAO에 없는 아이템 ══════════════
-    st.subheader("🔍 브랜드별 SPAO 랭킹에 없는 아이템타입")
-    st.caption("각 브랜드 TOP20에는 있지만 SPAO TOP20에는 없는 아이템타입의 상품 리스트")
+            # 브랜드별 유형 비중 Sunburst
+            st.markdown("#### 브랜드별 유형 비중")
+            fig_sun = px.sunburst(
+                type_chart_df, path=['브랜드', '아이템타입'], values='상품수',
+                color='브랜드', color_discrete_map=BRAND_COLORS,
+                title=f'{gender} TOP20 — 유형 구성 비율',
+            )
+            fig_sun.update_layout(height=480)
+            st.plotly_chart(fig_sun, use_container_width=True)
 
-    spao_types = set()
-    if '스파오' in brand_frames:
-        spao_types = set(brand_frames['스파오']['item_type'].unique())
+            # 유형 비중 히트맵 테이블
+            with st.expander("📋 유형 비중 상세 테이블", expanded=False):
+                pivot = type_chart_df.pivot_table(
+                    index='아이템타입', columns='브랜드', values='비중(%)', fill_value=0)
+                brand_order = [b for b in ALL_BRANDS if b in pivot.columns]
+                pivot = pivot[brand_order]
+                st.dataframe(pivot.style.format("{:.1f}%").background_gradient(cmap='YlOrRd', axis=None),
+                             use_container_width=True)
 
-    other_brands = [b for b in ALL_BRANDS if b != '스파오' and b in brand_frames]
+    # ──────────────── 탭2: 가격 심층 분석 ────────────────
+    with main_tabs[1]:
+        st.subheader("💰 가격 분포 비교")
 
-    if not other_brands:
-        st.info("비교할 다른 브랜드 데이터가 없습니다.")
-    else:
-        tabs = st.tabs(other_brands)
-        for tab, brand in zip(tabs, other_brands):
-            with tab:
-                bdf = brand_frames[brand]
-                brand_types = set(bdf['item_type'].unique())
-                missing_types = brand_types - spao_types
+        # 가격대 Box Plot
+        price_rows = []
+        for brand, bdf in brand_frames.items():
+            for _, row in bdf.iterrows():
+                price_rows.append({
+                    '브랜드': brand, '가격': row['price'],
+                    '상품명': row['name'][:15], '아이템타입': row.get('item_type', '')})
+        price_df = pd.DataFrame(price_rows)
 
-                if not missing_types:
-                    st.success(f"{brand} TOP20의 모든 아이템타입이 SPAO에도 있습니다!")
-                    continue
+        if not price_df.empty:
+            fig_box = px.box(
+                price_df, x='브랜드', y='가격', color='브랜드',
+                color_discrete_map=BRAND_COLORS,
+                title=f'{gender} TOP20 가격 분포 (Box Plot)',
+                points='all',
+            )
+            fig_box.update_layout(height=450, showlegend=False)
+            st.plotly_chart(fig_box, use_container_width=True)
 
-                st.markdown(f"**SPAO에 없는 아이템타입**: {', '.join(sorted(missing_types))}")
+        # 아이템타입별 평균가격 비교
+        st.markdown("#### 아이템타입별 평균가격 비교")
+        type_price_rows = []
+        for brand, bdf in brand_frames.items():
+            for t, grp in bdf.groupby('item_type'):
+                type_price_rows.append({
+                    '브랜드': brand, '아이템타입': t,
+                    '평균가격': int(grp['price'].mean()),
+                    '상품수': len(grp)})
+        type_price_df = pd.DataFrame(type_price_rows)
 
-                # 해당 아이템타입 상품들 리스트 + 이미지
-                missing_items = bdf[bdf['item_type'].isin(missing_types)].sort_values(['item_type', 'rank'])
-                show_cols = ['rank', 'name', 'item_type', 'price_str', 'sheet']
-                available_cols = [c for c in show_cols if c in missing_items.columns]
-                show_df = missing_items[available_cols].copy()
-                display_df = show_df[['rank', 'name', 'item_type', 'price_str']].copy()
-                display_df.columns = ['순위', '상품명', '아이템타입', '가격']
-                sheet_vals = show_df['sheet'].values if 'sheet' in show_df.columns else [''] * len(show_df)
-                bs_data = [(brand, s, r) for s, r in zip(sheet_vals, show_df['rank'])]
-                render_image_table(display_df, image_map, rank_col='순위', name_col='상품명',
-                                   height=min(len(display_df) * 38 + 60, 500),
-                                   key_prefix=f'spao_miss_{brand}', brand_sheet_data=bs_data)
+        if not type_price_df.empty:
+            fig_tp = px.bar(
+                type_price_df, x='아이템타입', y='평균가격', color='브랜드',
+                barmode='group', color_discrete_map=BRAND_COLORS,
+                title=f'{gender} TOP20 — 아이템타입별 평균가격',
+                text='평균가격',
+            )
+            fig_tp.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+            fig_tp.update_layout(height=480, xaxis_tickangle=-45, yaxis_title='평균가격(원)')
+            st.plotly_chart(fig_tp, use_container_width=True)
+
+            # SPAO 대비 가격 차이 테이블
+            with st.expander("📋 SPAO 대비 아이템타입별 가격 차이", expanded=True):
+                spao_type_prices = {}
+                if '스파오' in brand_frames:
+                    for t, grp in brand_frames['스파오'].groupby('item_type'):
+                        spao_type_prices[t] = int(grp['price'].mean())
+
+                diff_rows = []
+                for brand in [b for b in ALL_BRANDS if b != '스파오' and b in brand_frames]:
+                    for t, grp in brand_frames[brand].groupby('item_type'):
+                        brand_avg = int(grp['price'].mean())
+                        spao_avg_t = spao_type_prices.get(t, 0)
+                        if spao_avg_t > 0:
+                            diff = brand_avg - spao_avg_t
+                            diff_pct_val = diff / spao_avg_t * 100
+                            diff_rows.append({
+                                '브랜드': brand, '아이템타입': t,
+                                '브랜드 평균가': f"{brand_avg:,}원",
+                                'SPAO 평균가': f"{spao_avg_t:,}원",
+                                '차이': f"{diff:+,}원",
+                                '차이율': f"{diff_pct_val:+.1f}%",
+                            })
+                        else:
+                            diff_rows.append({
+                                '브랜드': brand, '아이템타입': t,
+                                '브랜드 평균가': f"{brand_avg:,}원",
+                                'SPAO 평균가': '—',
+                                '차이': '—', '차이율': '—',
+                            })
+                if diff_rows:
+                    st.dataframe(pd.DataFrame(diff_rows), use_container_width=True, hide_index=True)
+
+        # 가격대 분포 히스토그램
+        st.markdown("#### 가격대 분포")
+        if not price_df.empty:
+            fig_hist = px.histogram(
+                price_df, x='가격', color='브랜드', barmode='overlay',
+                color_discrete_map=BRAND_COLORS,
+                nbins=15, opacity=0.65,
+                title=f'{gender} TOP20 가격대 분포',
+            )
+            fig_hist.update_layout(height=380, xaxis_title='가격(원)', yaxis_title='상품 수')
+            st.plotly_chart(fig_hist, use_container_width=True)
+
+    # ──────────────── 탭3: TOP 상품 이미지 비교 ────────────────
+    with main_tabs[2]:
+        st.subheader("🖼️ TOP 상품 이미지 나란히 비교")
+        st.caption("각 브랜드의 TOP 상품을 이미지와 함께 나란히 비교합니다.")
+
+        img_top_n = st.slider("표시 개수", 3, 20, 10, key='spao_img_topn')
+        brand_list = [b for b in ALL_BRANDS if b in brand_frames]
+
+        if brand_list:
+            img_cols = st.columns(len(brand_list))
+            for ci, brand in enumerate(brand_list):
+                with img_cols[ci]:
+                    color = BRAND_COLORS.get(brand, '#888')
+                    st.markdown(
+                        f"<div style='background:{color};color:white;padding:6px;border-radius:6px;"
+                        f"text-align:center;font-weight:bold;font-size:14px;'>{brand}</div>",
+                        unsafe_allow_html=True)
+
+                    bdf = brand_frames[brand]
+                    top_items = bdf.nsmallest(img_top_n, 'rank')
+
+                    for _, row in top_items.iterrows():
+                        rank_val = int(row['rank'])
+                        name = row['name']
+                        price_s = row.get('price_str', '')
+                        item_type = row.get('item_type', '')
+                        sheet_val = row.get('sheet', '')
+
+                        b64 = get_image_b64(image_map, brand, sheet_val, rank_val) if image_map else None
+
+                        if b64:
+                            st.markdown(
+                                f"<div style='border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:8px;text-align:center;'>"
+                                f"<img src='data:image/jpeg;base64,{b64}' style='width:100%;max-width:180px;border-radius:6px;'/>"
+                                f"<div style='font-size:12px;font-weight:600;margin-top:4px;'>{rank_val}. {name[:18]}</div>"
+                                f"<div style='font-size:11px;color:#666;'>{item_type} · {price_s}</div>"
+                                f"</div>",
+                                unsafe_allow_html=True)
+                        else:
+                            st.markdown(
+                                f"<div style='border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:8px;text-align:center;"
+                                f"background:#f9f9f9;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;'>"
+                                f"<div style='font-size:12px;font-weight:600;'>{rank_val}. {name[:18]}</div>"
+                                f"<div style='font-size:11px;color:#666;'>{item_type} · {price_s}</div>"
+                                f"</div>",
+                                unsafe_allow_html=True)
+
+        # 동일 아이템타입 이미지 매칭 비교
+        st.divider()
+        st.subheader("🔗 동일 아이템타입 상품 이미지 매칭")
+        st.caption("같은 아이템타입(예: 팬츠, 아우터 등)을 가진 상품들을 브랜드 간 나란히 비교합니다.")
+
+        # 공통 아이템타입 찾기
+        all_types_sets = {b: set(bdf['item_type'].unique()) for b, bdf in brand_frames.items()}
+        common_types = set()
+        if all_types_sets:
+            common_types = set.intersection(*all_types_sets.values()) if len(all_types_sets) > 1 else set()
+            # SPAO와 다른 브랜드 간 공통
+            if '스파오' in all_types_sets:
+                for b, ts in all_types_sets.items():
+                    if b != '스파오':
+                        common_types = common_types | (ts & all_types_sets['스파오'])
+
+        if common_types:
+            selected_type = st.selectbox("아이템타입 선택", sorted(common_types), key='spao_type_match')
+
+            match_cols = st.columns(len(brand_list))
+            for ci, brand in enumerate(brand_list):
+                with match_cols[ci]:
+                    color = BRAND_COLORS.get(brand, '#888')
+                    st.markdown(
+                        f"<div style='background:{color};color:white;padding:4px;border-radius:4px;"
+                        f"text-align:center;font-weight:bold;font-size:13px;margin-bottom:6px;'>{brand}</div>",
+                        unsafe_allow_html=True)
+                    bdf = brand_frames[brand]
+                    type_items = bdf[bdf['item_type'] == selected_type].nsmallest(5, 'rank')
+
+                    if type_items.empty:
+                        st.caption("해당 유형 없음")
+                        continue
+
+                    for _, row in type_items.iterrows():
+                        rank_val = int(row['rank'])
+                        name = row['name']
+                        price_s = row.get('price_str', '')
+                        sheet_val = row.get('sheet', '')
+                        b64 = get_image_b64(image_map, brand, sheet_val, rank_val) if image_map else None
+
+                        if b64:
+                            st.markdown(
+                                f"<div style='border:1px solid #ddd;border-radius:6px;padding:6px;margin-bottom:6px;text-align:center;'>"
+                                f"<img src='data:image/jpeg;base64,{b64}' style='width:100%;max-width:150px;border-radius:4px;'/>"
+                                f"<div style='font-size:11px;font-weight:600;margin-top:3px;'>{rank_val}. {name[:16]}</div>"
+                                f"<div style='font-size:10px;color:#888;'>{price_s}</div>"
+                                f"</div>",
+                                unsafe_allow_html=True)
+                        else:
+                            st.markdown(
+                                f"<div style='border:1px solid #ddd;border-radius:6px;padding:6px;margin-bottom:6px;"
+                                f"text-align:center;background:#f9f9f9;'>"
+                                f"<div style='font-size:11px;font-weight:600;'>{rank_val}. {name[:16]}</div>"
+                                f"<div style='font-size:10px;color:#888;'>{price_s}</div>"
+                                f"</div>",
+                                unsafe_allow_html=True)
+        else:
+            st.info("브랜드 간 공통 아이템타입이 없습니다.")
+
+    # ──────────────── 탭4: SPAO 갭 분석 ────────────────
+    with main_tabs[3]:
+        st.subheader("🔍 SPAO 갭(Gap) 분석")
+        st.caption("다른 브랜드 TOP20에는 있지만 SPAO TOP20에는 없는 아이템타입 · 상품을 분석합니다.")
+
+        spao_types = set()
+        if '스파오' in brand_frames:
+            spao_types = set(brand_frames['스파오']['item_type'].unique())
+
+        other_brands = [b for b in ALL_BRANDS if b != '스파오' and b in brand_frames]
+
+        # 갭 요약 카드
+        if other_brands:
+            gap_summary = {}
+            for brand in other_brands:
+                brand_types = set(brand_frames[brand]['item_type'].unique())
+                missing = brand_types - spao_types
+                gap_summary[brand] = missing
+
+            total_gap_types = set()
+            for v in gap_summary.values():
+                total_gap_types |= v
+
+            if total_gap_types:
+                st.markdown(f"**SPAO에 없는 아이템타입 총 {len(total_gap_types)}종**: {', '.join(sorted(total_gap_types))}")
+
+                # 어느 브랜드에서 공통으로 나타나는지 분석
+                gap_freq = {}
+                for t in total_gap_types:
+                    brands_with = [b for b in other_brands if t in gap_summary[b]]
+                    gap_freq[t] = brands_with
+
+                gap_importance = sorted(gap_freq.items(), key=lambda x: -len(x[1]))
+
+                st.markdown("#### 🎯 갭 우선순위 (다수 브랜드에 있는 유형 = 시장 트렌드)")
+                for item_type, brands_with in gap_importance:
+                    cnt = len(brands_with)
+                    bar_len = cnt * 20
+                    st.markdown(
+                        f"<div style='margin:4px 0;'>"
+                        f"<span style='font-weight:bold;'>{item_type}</span> "
+                        f"<span style='display:inline-block;background:#e74c3c;height:14px;width:{bar_len}px;border-radius:3px;vertical-align:middle;margin:0 6px;'></span>"
+                        f"<span style='font-size:12px;color:#666;'>{cnt}개 브랜드 ({', '.join(brands_with)})</span>"
+                        f"</div>",
+                        unsafe_allow_html=True)
+            else:
+                st.success("SPAO TOP20에 다른 브랜드의 모든 아이템타입이 포함되어 있습니다!")
+
+        st.divider()
+
+        # 브랜드별 상세 (이미지 포함)
+        st.markdown("#### 브랜드별 상세 — SPAO에 없는 상품 리스트")
+
+        if not other_brands:
+            st.info("비교할 다른 브랜드 데이터가 없습니다.")
+        else:
+            tabs = st.tabs(other_brands)
+            for tab, brand in zip(tabs, other_brands):
+                with tab:
+                    bdf = brand_frames[brand]
+                    brand_types = set(bdf['item_type'].unique())
+                    missing_types = brand_types - spao_types
+
+                    if not missing_types:
+                        st.success(f"{brand} TOP20의 모든 아이템타입이 SPAO에도 있습니다!")
+                        continue
+
+                    st.markdown(f"**SPAO에 없는 아이템타입**: {', '.join(sorted(missing_types))}")
+
+                    # 해당 아이템타입 상품들 리스트 + 이미지
+                    missing_items = bdf[bdf['item_type'].isin(missing_types)].sort_values(['item_type', 'rank'])
+                    show_cols = ['rank', 'name', 'item_type', 'price_str', 'sheet']
+                    available_cols = [c for c in show_cols if c in missing_items.columns]
+                    show_df = missing_items[available_cols].copy()
+                    display_df = show_df[['rank', 'name', 'item_type', 'price_str']].copy()
+                    display_df.columns = ['순위', '상품명', '아이템타입', '가격']
+                    sheet_vals = show_df['sheet'].values if 'sheet' in show_df.columns else [''] * len(show_df)
+                    bs_data = [(brand, s, r) for s, r in zip(sheet_vals, show_df['rank'])]
+                    render_image_table(display_df, image_map, rank_col='순위', name_col='상품명',
+                                       height=min(len(display_df) * 38 + 60, 500),
+                                       key_prefix=f'spao_miss_{brand}', brand_sheet_data=bs_data)
 
 
+# ══════════════════════════════════════════════════════
+#  페이지: AI 분석 인사이트
+# ══════════════════════════════════════════════════════
 
+def page_analysis():
     st.header("🤖 AI 분석 인사이트")
 
     analysis = _load_analysis_history()

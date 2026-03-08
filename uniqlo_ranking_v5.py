@@ -21,8 +21,8 @@ socket.setdefaulttimeout(5)
 # 이미지 설정
 IMG_WIDTH = 80  # 엑셀에 삽입할 이미지 너비 (픽셀)
 IMG_HEIGHT = 107  # 3:4 비율로 계산된 높이
-HD_IMG_WIDTH = 200   # 대시보드용 고해상도 이미지
-HD_IMG_HEIGHT = 267  # 3:4 비율
+HD_IMG_WIDTH = 400   # 대시보드용 고해상도 이미지
+HD_IMG_HEIGHT = 534  # 3:4 비율
 ROW_HEIGHT = 85  # 행 높이 (포인트)
 SKIP_IMAGES = False  # True로 설정하면 이미지 캡쳐 건너뛰기 (빠른 테스트용)
 SAFE_MODE = True  # 법적 위험 최소화 모드 (robots.txt 준수)
@@ -232,30 +232,51 @@ def get_color_name(code):
     code = str(code).zfill(2)
     return COLOR_MAP.get(code, f'COLOR_{code}')
 
-def capture_image_from_element(element):
-    """요소를 스크린샷 캡처하여 이미지로 반환 (네트워크 요청 없이 빠름!)"""
+def capture_image_from_element(element, driver=None):
+    """요소를 스크린샷 캡처하여 (엑셀용, HD용) 튜플로 반환"""
     if SKIP_IMAGES:
         return None
     
     try:
+        # 요소를 뷰포트로 스크롤 → 이미지 lazy-load 대기
+        if driver:
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.4)       # 스크롤 안정화
+
+        # 이미지가 완전히 로드될 때까지 대기
+        if driver:
+            try:
+                driver.execute_script(
+                    "return arguments[0].complete && "
+                    "arguments[0].naturalWidth > 0;", element)
+            except Exception:
+                pass
+            time.sleep(0.6)       # 렌더링 여유
+
         # 요소를 PNG로 스크린샷 캡처
         png_data = element.screenshot_as_png
         if not png_data:
             return None
         
-        # PIL로 열고 리사이즈
+        # PIL로 열기
         img = PILImage.open(io.BytesIO(png_data))
         if img.mode in ('RGBA', 'P'):
             img = img.convert('RGB')
         
-        # 엑셀에 맞게 리사이즈
-        img = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
-        
-        # BytesIO로 변환
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format='JPEG', quality=85)
-        img_bytes.seek(0)
-        return img_bytes
+        # 엑셀용 (작은 사이즈)
+        img_small = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_small = io.BytesIO()
+        img_small.save(buf_small, format='JPEG', quality=85)
+        buf_small.seek(0)
+
+        # 대시보드용 HD (큰 사이즈)
+        img_hd = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_hd = io.BytesIO()
+        img_hd.save(buf_hd, format='JPEG', quality=90)
+        buf_hd.seek(0)
+
+        return (buf_small, buf_hd)
     except Exception:
         return None
 
@@ -521,14 +542,14 @@ def extract_products(driver, max_products=30):
     products = []
     log("      [DEBUG] 상품 추출 시작...")
     
-    # 스크롤하여 상품 로드 (횟수 줄임)
+    # 스크롤하여 상품 로드 (lazy-load 이미지 트리거)
     try:
-        log("      [DEBUG] 스크롤 시작")
-        for i in range(2):
+        log("      [DEBUG] 스크롤 시작 (이미지 로딩 대기)")
+        for i in range(3):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(0.5)
+            time.sleep(1.0)   # 이미지 로딩 대기
         driver.execute_script("window.scrollTo(0, 0);")
-        time.sleep(0.3)
+        time.sleep(1.0)
         log("      [DEBUG] 스크롤 완료")
     except Exception as e:
         log(f"      [WARN] 스크롤 오류: {e}")
@@ -613,7 +634,7 @@ def extract_products(driver, max_products=30):
                                 pass
                     
                     if img_elem:
-                        img_data = capture_image_from_element(img_elem)
+                        img_data = capture_image_from_element(img_elem, driver)
                         if img_data:
                             product['image_data'] = img_data[0]      # 엑셀용
                             product['hd_image_data'] = img_data[1]   # 대시보드용 고해상도
