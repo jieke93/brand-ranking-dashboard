@@ -2106,8 +2106,11 @@ def page_spao_compare(df, image_map=None):
                 brand_order = [b for b in ALL_BRANDS if b in pivot.columns]
                 if brand_order:
                     pivot = pivot[brand_order]
-                st.dataframe(pivot.style.format("{:.1f}%").background_gradient(cmap='YlOrRd', axis=None),
-                             use_container_width=True)
+                try:
+                    st.dataframe(pivot.style.format("{:.1f}%").background_gradient(cmap='YlOrRd', axis=None),
+                                 use_container_width=True)
+                except ImportError:
+                    st.dataframe(pivot.style.format("{:.1f}%"), use_container_width=True)
       except Exception as e:
         st.error(f"아이템유형 분석 오류: {e}")
         st.exception(e)
