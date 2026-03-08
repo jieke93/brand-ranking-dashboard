@@ -328,11 +328,11 @@ def extract_all_product_images():
                 img_bytes = f.read()
 
             if upscale and len(img_bytes) < 5000:
-                # 80x107 저해상도 → PIL로 200x267 업스케일
+                # 80x107 저해상도 → PIL로 400x534 업스케일
                 try:
                     from PIL import Image as PILImage
                     img = PILImage.open(io.BytesIO(img_bytes))
-                    img = img.resize((200, 267), PILImage.Resampling.LANCZOS)
+                    img = img.resize((400, 534), PILImage.Resampling.LANCZOS)
                     buf = io.BytesIO()
                     img.save(buf, format='JPEG', quality=92)
                     img_bytes = buf.getvalue()
@@ -415,13 +415,13 @@ def extract_all_product_images():
                 if row_0based in img_by_row:
                     raw_bytes = img_by_row[row_0based]
 
-                    # PIL로 업스케일 (80x107 → 200x267)
+                    # PIL로 업스케일 (80x107 → 400x534)
                     try:
                         from PIL import Image as PILImage
                         img_obj = PILImage.open(io.BytesIO(raw_bytes))
                         if img_obj.mode in ('RGBA', 'P'):
                             img_obj = img_obj.convert('RGB')
-                        img_obj = img_obj.resize((200, 267), PILImage.Resampling.LANCZOS)
+                        img_obj = img_obj.resize((400, 534), PILImage.Resampling.LANCZOS)
                         buf = io.BytesIO()
                         img_obj.save(buf, format='JPEG', quality=92)
                         upscaled_bytes = buf.getvalue()
@@ -519,7 +519,7 @@ def get_image_b64(image_map, brand, sheet, rank):
 
 def render_image_table(df_display, image_map, brand_col=None, sheet_col=None, rank_col='순위',
                        name_col='상품명', height=500, key_prefix='tbl', brand_sheet_data=None):
-    """이미지 호버/클릭 기능이 있는 HTML 테이블 렌더링 (components.html iframe 사용)"""
+    """이미지 미리보기 고정 패널이 있는 HTML 테이블 렌더링 (components.html iframe 사용)"""
     if df_display.empty:
         st.info("표시할 데이터가 없습니다.")
         return
@@ -548,90 +548,108 @@ def render_image_table(df_display, image_map, brand_col=None, sheet_col=None, ra
     rows_html = []
     for row_num, (idx, row) in enumerate(df_display.iterrows()):
         cells = []
+        has_img = row_num in row_images
         for c in cols:
             val = row[c] if pd.notna(row[c]) else ''
-            if c == name_col and row_num in row_images:
+            if c == name_col and has_img:
                 escaped_val = str(val).replace("'", "&#39;").replace('"', '&quot;')
                 display_val = str(val).replace('<', '&lt;').replace('>', '&gt;')
                 cells.append(
                     f'<td class="pn" data-row="{row_num}" '
-                    f'onclick="openModal({row_num},\'{escaped_val[:50]}\')">'
-                    f'{display_val}'
-                    f'<span class="hi"><img id="himg_{row_num}"/></span></td>'
+                    f'onclick="selectRow({row_num},\'{escaped_val[:50]}\')">'
+                    f'{display_val}</td>'
                 )
             else:
                 display_val = str(val).replace('<', '&lt;').replace('>', '&gt;')
                 cells.append(f"<td>{display_val}</td>")
-        rows_html.append(f"<tr>{''.join(cells)}</tr>")
+        row_class = ' class="has-img"' if has_img else ''
+        rows_html.append(f'<tr data-row="{row_num}"{row_class}>{"".join(cells)}</tr>')
 
     full_html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size:13px; }}
+
+.container {{ display:flex; height:{height - 10}px; }}
+
+/* 왼쪽: 테이블 영역 */
+.table-area {{ flex:1; overflow-y:auto; overflow-x:auto; min-width:0; }}
 table {{ width:100%; border-collapse:collapse; }}
 th {{ background:#1a1a2e; color:#fff; padding:8px 10px; text-align:center;
      position:sticky; top:0; z-index:10; font-weight:600; font-size:12px; }}
 td {{ padding:5px 8px; border-bottom:1px solid #e9ecef; text-align:center; vertical-align:middle; }}
 tr:hover {{ background:#f0f4ff; }}
-.pn {{ position:relative; text-align:left; cursor:pointer; color:#1a73e8; font-weight:500; }}
+tr.selected {{ background:#dbeafe !important; }}
+tr.has-img {{ cursor:pointer; }}
+.pn {{ text-align:left; color:#1a73e8; font-weight:500; cursor:pointer; }}
 .pn:hover {{ text-decoration:underline; }}
-.hi {{ display:none; position:absolute; left:105%; top:-40px; z-index:1000;
-      background:#fff; border:2px solid #ccc; border-radius:8px;
-      box-shadow:0 8px 24px rgba(0,0,0,0.18); padding:4px; pointer-events:none; }}
-.pn:hover .hi {{ display:block; }}
-.hi img {{ width:200px; height:auto; border-radius:4px; }}
 
-/* 모달 */
-#modal {{ display:none; position:fixed; top:0;left:0; width:100%;height:100%;
-         background:rgba(0,0,0,0.55); z-index:9999; justify-content:center; align-items:center; }}
-#modal.show {{ display:flex; }}
-.mc {{ background:#fff; border-radius:12px; padding:20px; max-width:380px; text-align:center;
-      box-shadow:0 12px 40px rgba(0,0,0,0.3); position:relative; }}
-.mc img {{ max-width:360px; border-radius:8px; margin-bottom:10px; }}
-.mc .mn {{ font-weight:600; font-size:14px; margin-bottom:10px; color:#333; word-break:break-all; }}
-.mc .cb {{ position:absolute; top:6px; right:10px; font-size:22px; cursor:pointer;
-          color:#888; border:none; background:none; }}
-.mc .cb:hover {{ color:#333; }}
-.mc .db {{ display:inline-block; padding:8px 20px; background:#1a73e8; color:#fff;
-          border-radius:6px; text-decoration:none; font-size:13px; font-weight:500; }}
-.mc .db:hover {{ background:#1557b0; }}
+/* 오른쪽: 이미지 미리보기 고정 패널 */
+.preview-panel {{
+    width:280px; min-width:280px; border-left:2px solid #e0e0e0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:15px; background:#fafbfc;
+}}
+.preview-empty {{
+    text-align:center; color:#aaa;
+}}
+.preview-empty .icon {{ font-size:48px; margin-bottom:10px; }}
+.preview-empty .msg {{ font-size:13px; line-height:1.6; }}
+.preview-content {{
+    display:none; text-align:center; width:100%;
+}}
+.preview-content img {{
+    max-width:250px; width:100%; height:auto;
+    border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.15);
+    image-rendering:auto;
+}}
+.preview-content .pname {{
+    margin-top:12px; font-weight:600; font-size:13px; color:#333;
+    word-break:break-all; line-height:1.4;
+}}
+.preview-content .prank {{
+    margin-top:4px; font-size:12px; color:#888;
+}}
 </style></head>
 <body>
-<div style="max-height:{height - 10}px; overflow-y:auto;">
-<table id="{table_id}">
-<thead><tr>{header}</tr></thead>
-<tbody>{''.join(rows_html)}</tbody>
-</table>
-</div>
-
-<div id="modal" onclick="if(event.target===this)closeModal()">
-  <div class="mc">
-    <button class="cb" onclick="closeModal()">&times;</button>
-    <img id="mimg" src=""/>
-    <div class="mn" id="mname"></div>
+<div class="container">
+  <div class="table-area">
+    <table id="{table_id}">
+    <thead><tr>{header}</tr></thead>
+    <tbody>{''.join(rows_html)}</tbody>
+    </table>
+  </div>
+  <div class="preview-panel">
+    <div class="preview-empty" id="pe">
+      <div class="icon">🖼️</div>
+      <div class="msg">상품을 클릭하면<br>이미지가 표시됩니다</div>
+    </div>
+    <div class="preview-content" id="pc">
+      <img id="pimg" src=""/>
+      <div class="pname" id="pname"></div>
+      <div class="prank" id="prank"></div>
+    </div>
   </div>
 </div>
 
 <script>
 {img_js}
-// 호버 이미지 lazy-load
-document.querySelectorAll('.pn').forEach(function(el) {{
-  var r = parseInt(el.getAttribute('data-row'));
-  if (IMG[r]) {{
-    var img = el.querySelector('.hi img');
-    if(img) img.src = 'data:image/jpeg;base64,' + IMG[r];
-  }}
-}});
-function openModal(r, name) {{
+function selectRow(r, name) {{
   if (!IMG[r]) return;
-  var src = 'data:image/jpeg;base64,' + IMG[r];
-  document.getElementById('mimg').src = src;
-  document.getElementById('mname').innerText = name;
-  document.getElementById('modal').classList.add('show');
-}}
-function closeModal() {{
-  document.getElementById('modal').classList.remove('show');
+  document.getElementById('pimg').src = 'data:image/jpeg;base64,' + IMG[r];
+  document.getElementById('pname').innerText = name;
+  // 순위 정보 표시
+  var row = document.querySelector('tr[data-row="'+r+'"]');
+  if (row) {{
+    var firstCell = row.querySelector('td');
+    if (firstCell) document.getElementById('prank').innerText = '순위: ' + firstCell.innerText;
+  }}
+  document.getElementById('pe').style.display = 'none';
+  document.getElementById('pc').style.display = 'block';
+  // 선택 행 하이라이트
+  document.querySelectorAll('tr.selected').forEach(function(el) {{ el.classList.remove('selected'); }});
+  if (row) row.classList.add('selected');
 }}
 </script>
 </body></html>"""

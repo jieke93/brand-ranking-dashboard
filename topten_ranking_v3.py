@@ -14,8 +14,8 @@ from PIL import Image as PILImage
 # 이미지 설정
 IMG_WIDTH = 80
 IMG_HEIGHT = 107
-HD_IMG_WIDTH = 200   # 대시보드용 고해상도 이미지
-HD_IMG_HEIGHT = 267  # 3:4 비율
+HD_IMG_WIDTH = 400   # 대시보드용 고해상도 이미지
+HD_IMG_HEIGHT = 534  # 3:4 비율
 ROW_HEIGHT = 85
 
 # 로그 파일 설정

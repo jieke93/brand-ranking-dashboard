@@ -23,8 +23,8 @@ from datetime import datetime
 # 설정
 IMG_WIDTH = 80
 IMG_HEIGHT = 107
-HD_IMG_WIDTH = 200   # 대시보드용 고해상도 이미지
-HD_IMG_HEIGHT = 267  # 3:4 비율
+HD_IMG_WIDTH = 400   # 대시보드용 고해상도 이미지
+HD_IMG_HEIGHT = 534  # 3:4 비율
 ROW_HEIGHT = 85
 MAX_PRODUCTS = 100  # 각 카테고리 최대값 수집
 SAFE_MODE = True  # 법적 위험 최소화 모드 (robots.txt 준수)
