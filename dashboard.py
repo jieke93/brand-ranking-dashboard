@@ -1448,20 +1448,51 @@ def page_top_items(df, image_map=None):
             st.plotly_chart(fig, use_container_width=True)
 
     with tabs[len(ALL_BRANDS)]:
+        # 브랜드별 리스트를 나란히 표시
+        brand_tops = {}
         cols = st.columns(len(ALL_BRANDS))
         for ci, brand in enumerate(ALL_BRANDS):
             with cols[ci]:
-                st.markdown(f"**{brand}**")
+                color = BRAND_COLORS.get(brand, '#888')
+                st.markdown(f"<div style='background:{color};color:white;padding:6px;border-radius:6px;text-align:center;font-weight:bold;'>{brand}</div>", unsafe_allow_html=True)
                 bdf = get_compare_data(df, brand, gender)
                 if bdf.empty:
-                    st.info("데이터 없음")
+                    st.caption("데이터 없음")
                     continue
-                top_raw = bdf.nsmallest(top_n, 'rank')[['rank', 'name', 'price_str', 'sheet']].copy()
-                top_df = top_raw[['rank', 'name', 'price_str']].copy()
-                top_df.columns = ['#', '상품명', '가격']
-                bs_data = [(brand, s, r) for s, r in zip(top_raw['sheet'], top_raw['rank'])]
-                render_image_table(top_df, image_map, rank_col='#', name_col='상품명',
-                                   height=450, key_prefix=f'tic_{brand}', brand_sheet_data=bs_data)
+                top_raw = bdf.nsmallest(top_n, 'rank')[['rank', 'name', 'item_type', 'price_str', 'sheet']].copy()
+                brand_tops[brand] = top_raw
+                for _, row in top_raw.iterrows():
+                    st.markdown(f"**{int(row['rank'])}**. {row['name'][:20]}  \n<span style='color:#888;font-size:0.85em;'>{row['item_type']} · {row['price_str']}</span>", unsafe_allow_html=True)
+
+        # 아래에 이미지 갤러리
+        st.divider()
+        st.subheader("🖼️ 상품 이미지")
+        img_cols = st.columns(len(ALL_BRANDS))
+        for ci, brand in enumerate(ALL_BRANDS):
+            with img_cols[ci]:
+                st.markdown(f"**{brand}**")
+                if brand not in brand_tops:
+                    continue
+                top_raw = brand_tops[brand]
+                for _, row in top_raw.iterrows():
+                    rank_val = int(row['rank'])
+                    sheet_val = row['sheet']
+                    key = (brand, sheet_val, rank_val)
+                    img_val = image_map.get(key, '')
+                    if img_val:
+                        if img_val.startswith('url:'):
+                            src = img_val[4:]
+                        else:
+                            src = f'data:image/jpeg;base64,{img_val}'
+                        st.markdown(
+                            f"<div style='margin-bottom:8px;'>"
+                            f"<img src='{src}' style='width:100%;max-width:120px;border-radius:4px;'>"
+                            f"<br><span style='font-size:0.75em;'>{rank_val}. {row['name'][:15]}</span>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.caption(f"{rank_val}. {row['name'][:15]} (이미지 없음)")
 
 
 # ══════════════════════════════════════════════════════
