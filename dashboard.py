@@ -590,13 +590,16 @@ def _build_df_from_history():
 
         for name, info in items.items():
             if isinstance(info, dict):
+                raw_price = info.get('price', 0)
+                numeric_price = parse_price(raw_price) if isinstance(raw_price, str) else (raw_price if isinstance(raw_price, (int, float)) else 0)
+                price_str_val = str(raw_price) if raw_price else ''
                 all_products.append({
                     'brand': brand, 'category': mapped_cat,
                     'sheet': sheet, 'rank': info.get('rank', 0),
                     'name': name,
                     'item_type': info.get('item_type', classify_item_type(name, brand)),
-                    'price': info.get('price', 0),
-                    'price_str': str(info.get('price', '')),
+                    'price': numeric_price,
+                    'price_str': price_str_val,
                     'date': latest_date,
                 })
 
