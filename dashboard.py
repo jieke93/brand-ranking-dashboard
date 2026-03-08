@@ -82,6 +82,7 @@ BRAND_CONFIG = {
 
 # 브랜드 목록 (자동 – BRAND_CONFIG 기반)
 BRAND_LIST = list(BRAND_CONFIG.keys())
+ALL_BRANDS = BRAND_LIST + ['스파오']  # 스파오 포함 전체 브랜드
 
 # ─── 아이템타입 분류 규칙 ───
 UNIQLO_ITEM_RULES = [
@@ -782,6 +783,7 @@ def _load_all_history_raw():
         'ranking_history.json': '유니클로',
         'arket_history.json': '아르켓',
         'topten_history.json': '탑텐',
+        'spao_history.json': '스파오',
     }
     for filename, brand in individual.items():
         fp = os.path.join(WORK_DIR, filename)
@@ -972,10 +974,14 @@ def get_compare_data(df, brand, gender):
         target = gender_map.get(gender, '')
         return df[(df['brand'] == brand) & (df['sheet'].isin([target, '전체']))]
     elif brand == '미쏘':
-        # 미쏘는 여성 전용
+        # 미쏬는 여성 전용
         if gender == '여성':
             return df[df['brand'] == brand]
         return pd.DataFrame()
+    elif brand == '스파오':
+        gender_map = {'여성': '여성', '남성': '남성'}
+        target = gender_map.get(gender, '')
+        return df[(df['brand'] == brand) & (df['sheet'] == target)]
     return pd.DataFrame()
 
 
@@ -984,7 +990,7 @@ def get_compare_data(df, brand, gender):
 # ══════════════════════════════════════════════════════
 
 def page_overview(df, history):
-    st.header(f"📊 {len(BRAND_LIST)}사 브랜드 종합 대시보드")
+    st.header(f"📊 {len(ALL_BRANDS)}사 브랜드 종합 대시보드")
 
     if df.empty:
         st.warning("크롤링 데이터가 없습니다. 먼저 크롤러를 실행해주세요.")
@@ -995,8 +1001,8 @@ def page_overview(df, history):
     st.caption(f"최신 데이터: {format_date(latest_date)} | 누적 수집: {len(dates)}회")
 
     # ── KPI 카드 ──
-    cols = st.columns(len(BRAND_LIST))
-    for i, brand in enumerate(BRAND_LIST):
+    cols = st.columns(len(ALL_BRANDS))
+    for i, brand in enumerate(ALL_BRANDS):
         bdf = df[df['brand'] == brand]
         with cols[i]:
             color = BRAND_COLORS[brand]
@@ -1018,12 +1024,12 @@ def page_overview(df, history):
         st.subheader(f"👗 {gender} 카테고리 아이템타입 비중 비교" if gender == '여성' else f"👔 {gender} 카테고리 아이템타입 비중 비교")
 
         fig = make_subplots(
-            rows=1, cols=len(BRAND_LIST),
-            subplot_titles=BRAND_LIST,
-            specs=[[{'type': 'pie'}] * len(BRAND_LIST)]
+            rows=1, cols=len(ALL_BRANDS),
+            subplot_titles=ALL_BRANDS,
+            specs=[[{'type': 'pie'}] * len(ALL_BRANDS)]
         )
 
-        for ci, brand in enumerate(BRAND_LIST, 1):
+        for ci, brand in enumerate(ALL_BRANDS, 1):
             bdf = get_compare_data(df, brand, gender)
             if bdf.empty:
                 continue
@@ -1046,7 +1052,7 @@ def page_overview(df, history):
 
         # 표 비교
         compare_data = []
-        for brand in BRAND_LIST:
+        for brand in ALL_BRANDS:
             bdf = get_compare_data(df, brand, gender)
             if bdf.empty:
                 continue
@@ -1082,7 +1088,7 @@ def page_overview(df, history):
                     values='비중(%)', fill_value=0.0, aggfunc='sum'
                 )
                 # 브랜드 순서 고정
-                brand_order = [b for b in BRAND_LIST if b in pivot_count.columns]
+                brand_order = [b for b in ALL_BRANDS if b in pivot_count.columns]
                 pivot_count = pivot_count[brand_order]
                 pivot_pct = pivot_pct[brand_order]
 
@@ -1150,7 +1156,7 @@ def page_brand_detail(df, history, image_map=None):
         st.warning("데이터가 없습니다.")
         return
 
-    brand = st.selectbox("브랜드 선택", BRAND_LIST)
+    brand = st.selectbox("브랜드 선택", ALL_BRANDS)
     bdf = df[df['brand'] == brand]
 
     if bdf.empty:
@@ -1265,7 +1271,7 @@ def page_brand_detail(df, history, image_map=None):
 # ══════════════════════════════════════════════════════
 
 def page_price_compare(df):
-    st.header(f"💰 {len(BRAND_LIST)}사 가격 비교 분석")
+    st.header(f"💰 {len(ALL_BRANDS)}사 가격 비교 분석")
 
     if df.empty:
         st.warning("데이터가 없습니다.")
@@ -1274,7 +1280,7 @@ def page_price_compare(df):
     gender = st.radio("카테고리", ['여성', '남성'], horizontal=True)
 
     rows = []
-    for brand in BRAND_LIST:
+    for brand in ALL_BRANDS:
         bdf = get_compare_data(df, brand, gender)
         if bdf.empty:
             continue
@@ -1301,15 +1307,15 @@ def page_price_compare(df):
     avg_df = cdf.groupby('브랜드')['가격'].agg(['mean', 'median', 'min', 'max']).reset_index()
     avg_df.columns = ['브랜드', '평균', '중앙값', '최저', '최고']
 
-    cols = st.columns(len(BRAND_LIST))
-    for i, brand in enumerate(BRAND_LIST):
+    cols = st.columns(len(ALL_BRANDS))
+    for i, brand in enumerate(ALL_BRANDS):
         row = avg_df[avg_df['브랜드'] == brand]
         if row.empty:
             continue
         r = row.iloc[0]
         with cols[i]:
             st.markdown(f"""
-            <div style="background: {BRAND_COLORS[brand]}; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+            <div style="background: {BRAND_COLORS.get(brand, '#888')}; color: white; padding: 15px; border-radius: 10px; text-align: center;">
                 <h3 style="margin:0; color:white;">{brand}</h3>
                 <h2 style="margin:5px 0; color:white;">{r['평균']:,.0f}원</h2>
                 <p style="margin:0; font-size:0.85em; color: rgba(255,255,255,0.8);">
@@ -1354,7 +1360,7 @@ def page_price_compare(df):
     price_labels = ['~1만', '1~2만', '2~3만', '3~5만', '5~7만', '7~10만', '10~15만', '15~20만', '20~30만', '30만+']
 
     band_data = []
-    for brand in BRAND_LIST:
+    for brand in ALL_BRANDS:
         bd = cdf[cdf['브랜드'] == brand]['가격']
         if bd.empty:
             continue
@@ -1386,9 +1392,9 @@ def page_top_items(df, image_map=None):
     gender = st.radio("카테고리", ['여성', '남성'], horizontal=True, key='top_gender')
     top_n = st.slider("표시 개수", 5, 30, 10)
 
-    tabs = st.tabs(BRAND_LIST + ['나란히 비교'])
+    tabs = st.tabs(ALL_BRANDS + ['나란히 비교'])
 
-    for ti, brand in enumerate(BRAND_LIST):
+    for ti, brand in enumerate(ALL_BRANDS):
         with tabs[ti]:
             bdf = get_compare_data(df, brand, gender)
             if bdf.empty:
@@ -1431,9 +1437,9 @@ def page_top_items(df, image_map=None):
             fig.update_layout(height=300)
             st.plotly_chart(fig, use_container_width=True)
 
-    with tabs[len(BRAND_LIST)]:
-        cols = st.columns(len(BRAND_LIST))
-        for ci, brand in enumerate(BRAND_LIST):
+    with tabs[len(ALL_BRANDS)]:
+        cols = st.columns(len(ALL_BRANDS))
+        for ci, brand in enumerate(ALL_BRANDS):
             with cols[ci]:
                 st.markdown(f"**{brand}**")
                 bdf = get_compare_data(df, brand, gender)
@@ -1469,7 +1475,7 @@ def page_ranking_trend(history, image_map=None):
         st.info("📌 2회 이상 수집되면 랭킹 변동을 추적할 수 있습니다. 크롤러를 매일 실행해보세요!")
 
         # 현재 데이터 테이블만 보여주기
-        brand = st.selectbox("브랜드", BRAND_LIST, key='trend_brand_1')
+        brand = st.selectbox("브랜드", ALL_BRANDS, key='trend_brand_1')
         cat_keys = [k for k in history.keys() if k.startswith(brand)]
         if cat_keys:
             cat = st.selectbox("카테고리", cat_keys, key='trend_cat_1')
@@ -1499,7 +1505,7 @@ def page_ranking_trend(history, image_map=None):
         return
 
     # 랭킹 변동이 있을 때
-    brand = st.selectbox("브랜드", BRAND_LIST, key='trend_brand')
+    brand = st.selectbox("브랜드", ALL_BRANDS, key='trend_brand')
 
     cat_keys = sorted([k for k in history.keys() if k.startswith(brand)])
     if not cat_keys:
@@ -1687,25 +1693,18 @@ def page_search(df, image_map=None):
     if image_map is None:
         image_map = {}
 
-    # SPAO 데이터를 df에 통합
-    spao_df = load_spao_data()
-    if not spao_df.empty:
-        spao_for_merge = spao_df[['brand', 'category', 'sheet', 'rank', 'name', 'item_type', 'price', 'price_str']].copy()
-        if 'date' not in spao_for_merge.columns:
-            spao_for_merge['date'] = ''
-        df = pd.concat([df, spao_for_merge], ignore_index=True)
+    # SPAO 데이터는 이미 df에 통합됨
 
     if df.empty:
         st.warning("데이터가 없습니다.")
         return
 
-    all_brands = BRAND_LIST + ['스파오']
     query = st.text_input("검색어 입력 (상품명, 아이템타입 등)", placeholder="예: 자켓, 패딩, shirt...")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        brand_filter = st.multiselect("브랜드", all_brands,
-                                       default=all_brands)
+        brand_filter = st.multiselect("브랜드", ALL_BRANDS,
+                                       default=ALL_BRANDS)
     with col2:
         types = df['item_type'].unique().tolist()
         type_filter = st.multiselect("아이템타입", sorted(types))
@@ -1880,6 +1879,7 @@ def _get_gender_overall_top20(df, brand, gender):
         '아르켓':   {'여성': 'WOMEN',          '남성': 'MEN'},
         '탑텐':     {'여성': '여성',            '남성': '남성'},
         '미쏘':     {'여성': '여성'},
+        '스파오':   {'여성': '여성',            '남성': '남성'},
     }
     sheets = GENDER_SHEET_MAP.get(brand, {})
     target_sheet = sheets.get(gender)
@@ -1894,9 +1894,9 @@ def page_spao_compare(df):
     st.header("🆚 SPAO 비교 분석")
     st.caption("각 브랜드 성별 전체 랭킹 TOP 20 기준으로 SPAO와 비교합니다.")
 
-    spao_df = load_spao_data()
+    spao_in_df = df[df['brand'] == '스파오'] if not df.empty else pd.DataFrame()
 
-    if spao_df.empty:
+    if spao_in_df.empty:
         st.warning("SPAO 데이터가 없습니다. `python spao_crawler.py`를 먼저 실행해주세요.")
         st.code("python spao_crawler.py", language="bash")
         return
@@ -1909,19 +1909,12 @@ def page_spao_compare(df):
     gender = st.radio("성별", ["여성", "남성"], horizontal=True, key='spao_gender')
 
     # ── 각 브랜드 TOP 20 추출 ──
-    all_brands = BRAND_LIST + ['스파오']
     brand_frames = {}
 
-    for brand in BRAND_LIST:
+    for brand in ALL_BRANDS:
         bdf = _get_gender_overall_top20(df, brand, gender)
         if not bdf.empty:
             brand_frames[brand] = bdf
-
-    # SPAO TOP 20
-    spao_g = spao_df[spao_df['category'] == gender].copy()
-    spao_g = spao_g[spao_g['rank'] <= 20].sort_values('rank')
-    if not spao_g.empty:
-        brand_frames['스파오'] = spao_g
 
     if '스파오' not in brand_frames:
         st.info(f"SPAO {gender} 데이터가 없습니다.")
@@ -1965,7 +1958,7 @@ def page_spao_compare(df):
     pivot = type_chart_df.pivot_table(index='아이템타입', columns='브랜드', values='상품수', fill_value=0)
     pivot = pivot.astype(int)
     # 브랜드 순서 정렬
-    ordered_cols = [b for b in all_brands if b in pivot.columns]
+    ordered_cols = [b for b in ALL_BRANDS if b in pivot.columns]
     pivot = pivot[ordered_cols]
     pivot['합계'] = pivot.sum(axis=1)
     pivot = pivot.sort_values('합계', ascending=False)
@@ -2005,8 +1998,8 @@ def page_spao_compare(df):
     # ══════════════  브랜드별 TOP 20 목록  ══════════════
     st.subheader("📋 브랜드별 TOP 20 목록")
 
-    tabs = st.tabs([b for b in all_brands if b in brand_frames])
-    for tab, brand in zip(tabs, [b for b in all_brands if b in brand_frames]):
+    tabs = st.tabs([b for b in ALL_BRANDS if b in brand_frames])
+    for tab, brand in zip(tabs, [b for b in ALL_BRANDS if b in brand_frames]):
         bdf = brand_frames[brand]
         with tab:
             show_cols = ['rank', 'name', 'item_type', 'price_str']
@@ -2134,7 +2127,7 @@ def _check_login():
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown(
             "<h1 style='text-align:center;'>📊 브랜드 랭킹 대시보드</h1>"
-            f"<p style='text-align:center; color:#888;'>{'  \u00b7  '.join(BRAND_LIST)}</p>",
+            f"<p style='text-align:center; color:#888;'>{'  ·  '.join(ALL_BRANDS)}</p>",
             unsafe_allow_html=True,
         )
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2201,7 +2194,7 @@ def main():
     with st.sidebar:
         st.image("https://img.icons8.com/fluency/48/analytics.png", width=48)
         st.title("랭킹 대시보드")
-        st.caption(' \u00b7 '.join(BRAND_LIST))
+        st.caption(' · '.join(ALL_BRANDS))
         st.divider()
 
         page = st.radio(
@@ -2237,6 +2230,13 @@ def main():
         with st.spinner("데이터 로드 중..."):
             history = load_all_history()
             df = load_latest_excel_data()
+            # SPAO 데이터를 메인 df에 통합
+            spao_df = load_spao_data()
+            if not spao_df.empty:
+                spao_merge = spao_df[['brand', 'category', 'sheet', 'rank', 'name', 'item_type', 'price', 'price_str']].copy()
+                if 'date' not in spao_merge.columns:
+                    spao_merge['date'] = ''
+                df = pd.concat([df, spao_merge], ignore_index=True)
             image_map = extract_all_product_images()
             # archive 이미지로 보충 (HD 이미지 없는 유니클로·아르켓 등)
             image_map = augment_image_map_from_archive(image_map, df)
