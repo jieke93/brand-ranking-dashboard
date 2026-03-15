@@ -67,6 +67,154 @@ def safe_get(driver, url):
     driver.get(url)
     return True
 
+
+def _norm_text(s):
+    """탭/라벨 비교용 간단 정규화"""
+    if s is None:
+        return ''
+    s = str(s)
+    s = s.replace('\u00a0', ' ')
+    s = re.sub(r'\s+', ' ', s).strip()
+    # 비교 안정화: 공백/기호 주변 차이 흡수
+    s = s.replace(' & ', '&').replace('& ', '&').replace(' &', '&')
+    return s
+
+
+def _force_remove_onetrust_dom(driver):
+    """OneTrust/쿠키 관련 배너/오버레이를 DOM에서 제거/숨김"""
+    try:
+        driver.execute_script(
+            """
+            const ids = [
+              'onetrust-banner-sdk',
+              'onetrust-consent-sdk',
+              'onetrust-pc-sdk',
+              'ot-sdk-btn-floating',
+              'onetrust-policy',
+              'onetrust-accept-btn-handler',
+              'onetrust-reject-all-handler'
+            ];
+            for (const id of ids) {
+              const el = document.getElementById(id);
+              if (el) { try { el.remove(); } catch(e) { el.style.display='none'; el.style.visibility='hidden'; } }
+            }
+
+            const selectors = [
+              '#onetrust-banner-sdk',
+              '#onetrust-consent-sdk',
+              '#onetrust-pc-sdk',
+              '.onetrust-pc-dark-filter',
+              '.ot-sdk-container',
+              '.ot-overlay',
+              '.ot-floating-button',
+              '[class*="onetrust"]',
+              '[id*="onetrust"]',
+              '[class*="ot-sdk"]',
+              '[id*="ot-sdk"]'
+            ];
+            document.querySelectorAll(selectors.join(',')).forEach(el => {
+              try { el.remove(); } catch(e) { el.style.display='none'; el.style.visibility='hidden'; }
+            });
+
+            // 혹시 body 스크롤이 막혔으면 해제
+            try { document.body.style.overflow = 'auto'; } catch(e) {}
+            """
+        )
+    except Exception:
+        pass
+
+
+def _try_click_cookie_buttons_in_context(driver):
+    """현재 컨텍스트(메인/iframe)에서 쿠키 버튼을 찾아 클릭 시도"""
+    clicked = False
+
+    # 1) OneTrust 표준 ID
+    for btn_id in ['onetrust-accept-btn-handler', 'onetrust-reject-all-handler']:
+        try:
+            btn = driver.find_element(By.ID, btn_id)
+            if btn and btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                time.sleep(0.2)
+                clicked = True
+        except Exception:
+            pass
+
+    # 2) 텍스트 기반 (한국어/영문 혼용 대응)
+    xpaths = [
+        "//button[contains(., '동의') or contains(., '수락') or contains(., '확인') or contains(., 'Accept') or contains(., 'Agree') or contains(., 'OK') or contains(., '모두') or contains(., '거부') or contains(., 'Reject')]",
+        "//a[contains(., '동의') or contains(., '수락') or contains(., '확인') or contains(., 'Accept') or contains(., 'Agree') or contains(., 'OK')]",
+    ]
+    for xp in xpaths:
+        try:
+            elems = driver.find_elements(By.XPATH, xp)
+            for el in elems[:4]:
+                try:
+                    if el.is_displayed():
+                        driver.execute_script("arguments[0].click();", el)
+                        time.sleep(0.2)
+                        clicked = True
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    return clicked
+
+
+def _cookie_banner_present(driver):
+    try:
+        return bool(
+            driver.execute_script(
+                """
+                const ids = ['onetrust-banner-sdk','onetrust-consent-sdk','onetrust-pc-sdk'];
+                for (const id of ids) {
+                  const el = document.getElementById(id);
+                  if (el && el.offsetParent !== null) return true;
+                }
+                const any = document.querySelector('[class*="onetrust"], [id*="onetrust"], .ot-sdk-container, .onetrust-pc-dark-filter');
+                return !!(any && any.offsetParent !== null);
+                """
+            )
+        )
+    except Exception:
+        return False
+
+
+def _find_product_tiles(driver):
+    """페이지 구조 변경 대비: 여러 셀렉터로 상품 타일을 탐색"""
+    selectors = [
+        '.product-tile',
+        "[data-testid='product-tile']",
+        '.fr-ec-product-tile',
+    ]
+    best = []
+    for sel in selectors:
+        try:
+            elems = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(elems) > len(best):
+                best = elems
+        except Exception:
+            continue
+    return best
+
+
+class BrowserCrashedError(Exception):
+    """Chrome 창이 크래시/종료되어 더 이상 세션을 사용할 수 없을 때"""
+
+
+def _is_driver_dead_error(exc) -> bool:
+    msg = (str(exc) or '').lower()
+    fatal_markers = [
+        'no such window',
+        'target window already closed',
+        'web view not found',
+        'session deleted',
+        'invalid session id',
+        'disconnected',
+    ]
+    return any(m in msg for m in fatal_markers)
+
 # 로그 파일 초기화
 with open(LOG_FILE, 'w', encoding='utf-8') as f:
     f.write("")
@@ -83,6 +231,8 @@ from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from openpyxl.drawing.image import Image as XLImage
 import time
 import os
+import glob
+import argparse
 from datetime import datetime
 import re
 
@@ -238,11 +388,23 @@ def capture_image_from_element(element, driver=None):
         return None
     
     try:
+        # 캡쳐 직전 쿠키/오버레이를 다시 제거 (배너가 스크롤 중 재등장하는 케이스 대응)
+        if driver:
+            if _cookie_banner_present(driver):
+                close_cookie_popup(driver)
+            _force_remove_onetrust_dom(driver)
+
         # 요소를 뷰포트로 스크롤 → 이미지 lazy-load 대기
         if driver:
             driver.execute_script(
                 "arguments[0].scrollIntoView({block: 'center'});", element)
             time.sleep(0.4)       # 스크롤 안정화
+
+        # 스크롤 후 다시 뜨는 배너 제거
+        if driver:
+            if _cookie_banner_present(driver):
+                close_cookie_popup(driver)
+            _force_remove_onetrust_dom(driver)
 
         # 이미지가 완전히 로드될 때까지 대기
         if driver:
@@ -277,7 +439,9 @@ def capture_image_from_element(element, driver=None):
         buf_hd.seek(0)
 
         return (buf_small, buf_hd)
-    except Exception:
+    except Exception as e:
+        if _is_driver_dead_error(e):
+            raise BrowserCrashedError(str(e))
         return None
 
 def _download_image_worker(url):
@@ -351,65 +515,62 @@ def setup_driver():
     return driver
 
 def close_cookie_popup(driver):
-    """쿠키 동의 팝업 닫기"""
+    """쿠키 동의 팝업 닫기 (OneTrust 배너 완전 제거)"""
     try:
-        # 방법 1: 쿠키 동의 버튼 클릭 (다양한 셀렉터 시도)
-        cookie_selectors = [
-            # 유니클로 쿠키 팝업 버튼들
-            'button#onetrust-accept-btn-handler',  # OneTrust 쿠키 배너
-            'button.onetrust-close-btn-handler',
-            'button[id*="accept"]',
-            'button[class*="cookie"][class*="accept"]',
-            'button[class*="consent"]',
-            '#onetrust-pc-btn-handler',
-            '.ot-pc-refuse-all-handler',
-            # 일반적인 쿠키 버튼
-            'button:has-text("동의")',
-            'button:has-text("Accept")',
-            'button:has-text("모두 동의")',
-            'a.cookie-accept',
-            'div.cookie-banner button',
-        ]
-        
-        for selector in cookie_selectors:
+        # FAST PATH: 배너가 없으면 무거운 클릭/iframe 스캔을 하지 않음
+        try:
+            if not _cookie_banner_present(driver):
+                _force_remove_onetrust_dom(driver)
+                return False
+        except Exception as e:
+            if _is_driver_dead_error(e):
+                raise BrowserCrashedError(str(e))
+
+        clicked_any = False
+
+        for _ in range(2):
             try:
-                buttons = driver.find_elements(By.CSS_SELECTOR, selector)
-                for btn in buttons:
-                    if btn.is_displayed():
-                        driver.execute_script("arguments[0].click();", btn)
-                        time.sleep(0.3)
-                        return True
-            except:
-                continue
-        
-        # 방법 2: XPath로 텍스트 기반 검색
-        xpath_patterns = [
-            "//button[contains(text(), '동의')]",
-            "//button[contains(text(), 'Accept')]",
-            "//button[contains(text(), '모두 동의')]",
-            "//button[contains(text(), '수락')]",
-            "//a[contains(text(), '동의')]",
-            "//*[@id='onetrust-accept-btn-handler']",
-        ]
-        
-        for xpath in xpath_patterns:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+
+            # 메인 문서에서 클릭 시도
+            if _try_click_cookie_buttons_in_context(driver):
+                clicked_any = True
+
+            # iframe 내부에서도 시도 (간헐적으로 iframe에 렌더링되는 케이스 대응)
             try:
-                elements = driver.find_elements(By.XPATH, xpath)
-                for elem in elements:
-                    if elem.is_displayed():
-                        driver.execute_script("arguments[0].click();", elem)
-                        time.sleep(0.3)
-                        return True
-            except:
-                continue
+                frames = driver.find_elements(By.CSS_SELECTOR, 'iframe')
+            except Exception:
+                frames = []
+
+            for fr in frames[:6]:
+                try:
+                    driver.switch_to.default_content()
+                    driver.switch_to.frame(fr)
+                    if _try_click_cookie_buttons_in_context(driver):
+                        clicked_any = True
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        driver.switch_to.default_content()
+                    except Exception:
+                        pass
+
+            # DOM 강제 제거/숨김
+            _force_remove_onetrust_dom(driver)
+            time.sleep(0.2)
+
+            if not _cookie_banner_present(driver):
+                return True
+
+        # 배너가 남아있더라도, DOM 제거는 수행한 상태
+        return clicked_any
         
-        # 방법 3: JavaScript로 쿠키 배너 숨기기
-        driver.execute_script("""
-            var banners = document.querySelectorAll('[class*="cookie"], [class*="consent"], [id*="onetrust"], [class*="onetrust"]');
-            banners.forEach(function(b) { b.style.display = 'none'; });
-        """)
-        
-    except Exception:
+    except Exception as e:
+        if _is_driver_dead_error(e):
+            raise BrowserCrashedError(str(e))
         pass
     return False
 
@@ -445,95 +606,142 @@ def get_available_tabs(driver):
     
     return available_tabs
 
-def click_tab(driver, tab_name, timeout=5):
-    """하위 탭 클릭 - CSS 셀렉터 기반 개선판 (타임아웃 추가)"""
+def click_tab(driver, tab_name, timeout=10):
+    """하위 탭 클릭 - 서브카테고리 탭 전환 + 상품 리로드 대기"""
     start_time = time.time()
     
     try:
         log(f"      -> '{tab_name}' 탭 찾는 중...", end='')
         
-        # 방법 1: fr-ec-tab 클래스로 탭 찾기 (페이지 구조에 맞춤)
-        tab_links = driver.find_elements(By.CSS_SELECTOR, "a.fr-ec-tab")
+        # 클릭 전 현재 상품 개수 기록 (탭 전환 감지용)
+        old_tiles = _find_product_tiles(driver)
+        old_count = len(old_tiles)
+        # 첫 번째 상품의 텍스트를 기록 (같은 개수여도 내용 변경 감지)
+        old_first_text = ''
+        if old_tiles:
+            try:
+                old_first_text = old_tiles[0].text[:50]
+            except:
+                pass
         
-        for tab in tab_links:
+        clicked = False
+        
+        # 방법 1: fr-ec-tab--small-height 클래스(서브 탭 전용)에서 텍스트 매칭
+        sub_tabs = driver.find_elements(By.CSS_SELECTOR, 'a.fr-ec-tab.fr-ec-tab--small-height')
+        for tab in sub_tabs:
             if time.time() - start_time > timeout:
                 log(" 타임아웃")
                 return False
             try:
-                # span.fr-ec-tab__label 내부 텍스트 확인
-                label = tab.find_element(By.CSS_SELECTOR, "span.fr-ec-tab__label")
-                label_text = label.text.strip()
-                
-                if label_text == tab_name or tab_name in label_text:
-                    # 탭이 화면에 보이게 스크롤
+                tab_text = _norm_text(tab.text)
+                if tab_text == _norm_text(tab_name) or _norm_text(tab_name) in tab_text:
                     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tab)
                     time.sleep(0.3)
-                    
-                    # JavaScript로 클릭 (더 안정적)
+                    close_cookie_popup(driver)
                     driver.execute_script("arguments[0].click();", tab)
-                    log(" 클릭 성공!")
-                    time.sleep(1.5)
-                    return True
+                    log(" 클릭!", end='')
+                    clicked = True
+                    break
             except:
                 continue
         
-        if time.time() - start_time > timeout:
-            log(" 타임아웃")
-            return False
-        
-        # 방법 2: swiper-slide 내부에서 탭 찾기
-        log(" 재시도...", end='')
-        slides = driver.find_elements(By.CSS_SELECTOR, ".swiper-slide a.fr-ec-tab")
-        
-        for slide_tab in slides:
-            if time.time() - start_time > timeout:
-                log(" 타임아웃")
-                return False
-            try:
-                tab_text = slide_tab.text.strip()
-                if tab_name in tab_text:
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", slide_tab)
-                    time.sleep(0.3)
-                    driver.execute_script("arguments[0].click();", slide_tab)
-                    log(" 클릭 성공!")
-                    time.sleep(1.5)
-                    return True
-            except:
-                continue
-        
-        if time.time() - start_time > timeout:
-            log(" 타임아웃")
-            return False
+        # 방법 2: [role=tab]에서 서브카테고리(모두보기/상의/팬츠 등) 찾기
+        if not clicked:
+            log(" role=tab...", end='')
+            all_role_tabs = driver.find_elements(By.CSS_SELECTOR, '[role="tab"]')
+            for tab in all_role_tabs:
+                if time.time() - start_time > timeout:
+                    log(" 타임아웃")
+                    return False
+                try:
+                    tab_text = _norm_text(tab.text)
+                    tab_cls = tab.get_attribute('class') or ''
+                    # 카테고리 탭(WOMEN/MEN 등)이 아닌 서브 탭만 대상
+                    if tab_text == _norm_text(tab_name) and 'fr-ec-tab--boxed' not in tab_cls and tab_text not in ['WOMEN', 'MEN', 'KIDS', 'BABY']:
+                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tab)
+                        time.sleep(0.3)
+                        close_cookie_popup(driver)
+                        driver.execute_script("arguments[0].click();", tab)
+                        log(" 클릭!", end='')
+                        clicked = True
+                        break
+                except:
+                    continue
         
         # 방법 3: XPath로 정확한 텍스트 매칭
-        log(" XPath 시도...", end='')
-        xpath_patterns = [
-            f"//span[@class='fr-ec-tab__label fr-ec-tab--small'][contains(text(), '{tab_name}')]/ancestor::a",
-            f"//span[contains(@class, 'fr-ec-tab__label')][contains(text(), '{tab_name}')]/parent::a",
-            f"//a[@role='tab']//span[contains(text(), '{tab_name}')]/parent::a"
-        ]
+        if not clicked:
+            log(" XPath...", end='')
+            xpath_patterns = [
+                f"//a[contains(@class, 'fr-ec-tab--small-height')]//span[text()='{tab_name}']/ancestor::a",
+                f"//a[@role='tab'][not(contains(@class, 'boxed'))]//span[contains(text(), '{tab_name}')]/ancestor::a",
+                f"//a[contains(@class, 'fr-ec-tab')][not(contains(@class, 'boxed'))][contains(., '{tab_name}')]",
+            ]
+            for xpath in xpath_patterns:
+                if time.time() - start_time > timeout:
+                    break
+                try:
+                    tabs = driver.find_elements(By.XPATH, xpath)
+                    for tab in tabs:
+                        if tab.is_displayed():
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tab)
+                            time.sleep(0.2)
+                            close_cookie_popup(driver)
+                            driver.execute_script("arguments[0].click();", tab)
+                            log(" 클릭!", end='')
+                            clicked = True
+                            break
+                except:
+                    continue
+                if clicked:
+                    break
         
-        for xpath in xpath_patterns:
-            if time.time() - start_time > timeout:
-                log(" 타임아웃")
-                return False
+        if not clicked:
+            log(" 실패")
+            return False
+        
+        # === 탭 클릭 후 상품 리로드 대기 (핵심 수정) ===
+        log(" 상품 로딩 대기...", end='')
+        max_wait = 10  # 최대 10초 대기
+        wait_start = time.time()
+        loaded = False
+        
+        while time.time() - wait_start < max_wait:
+            time.sleep(0.5)
             try:
-                tabs = driver.find_elements(By.XPATH, xpath)
-                for tab in tabs:
-                    if tab.is_displayed():
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tab)
-                        time.sleep(0.2)
-                        driver.execute_script("arguments[0].click();", tab)
-                        log(" 클릭 성공!")
-                        time.sleep(1.5)
-                        return True
+                close_cookie_popup(driver)
+                new_tiles = _find_product_tiles(driver)
+                new_count = len(new_tiles)
+                
+                if new_count > 0:
+                    # 상품이 있으면, 내용이 바뀌었는지 확인
+                    new_first_text = ''
+                    try:
+                        new_first_text = new_tiles[0].text[:50]
+                    except:
+                        pass
+                    
+                    # 상품 개수가 달라지거나 첫 번째 상품 텍스트가 달라지면 로딩 완료
+                    if new_count != old_count or new_first_text != old_first_text:
+                        loaded = True
+                        break
+                    # 같은 개수+같은 내용이어도 1초 이상 지났으면 완료로 간주
+                    if time.time() - wait_start > 2.0:
+                        loaded = True
+                        break
             except:
                 continue
         
-        log(" 실패")
-        return False
+        if loaded:
+            log(" OK!")
+        else:
+            log(" 대기완료(변경감지못함)")
+        
+        time.sleep(0.5)  # 렌더링 안정화
+        return True
         
     except Exception as e:
+        if _is_driver_dead_error(e):
+            raise BrowserCrashedError(str(e))
         log(f" 오류: {e}")
         return False
 
@@ -541,6 +749,16 @@ def extract_products(driver, max_products=30):
     """상품 데이터 추출 - 이미지 다운로드 포함 (멈춤 방지 강화)"""
     products = []
     log("      [DEBUG] 상품 추출 시작...")
+    
+    # 상품 타일이 로드될 때까지 대기 (탭 전환 후 DOM 갱신 대기)
+    log("      [DEBUG] 상품 로딩 대기 중...")
+    product_tiles = []
+    for wait_i in range(10):  # 최대 5초 대기
+        close_cookie_popup(driver)
+        product_tiles = _find_product_tiles(driver)
+        if len(product_tiles) > 0:
+            break
+        time.sleep(0.5)
     
     # 스크롤하여 상품 로드 (lazy-load 이미지 트리거)
     try:
@@ -554,12 +772,15 @@ def extract_products(driver, max_products=30):
     except Exception as e:
         log(f"      [WARN] 스크롤 오류: {e}")
     
-    # 상품 타일 찾기
+    # 상품 타일 다시 찾기 (스크롤 후 추가 로드될 수 있음)
     log("      [DEBUG] 상품 타일 검색 시작")
     try:
-        product_tiles = driver.find_elements(By.CSS_SELECTOR, ".product-tile")
+        close_cookie_popup(driver)
+        product_tiles = _find_product_tiles(driver)
         log(f"      [DEBUG] 상품 타일 {len(product_tiles)}개 발견")
     except Exception as e:
+        if _is_driver_dead_error(e):
+            raise BrowserCrashedError(str(e))
         log(f"      [ERROR] 상품 타일 찾기 실패: {e}")
         return []
     
@@ -640,6 +861,8 @@ def extract_products(driver, max_products=30):
                             product['hd_image_data'] = img_data[1]   # 대시보드용 고해상도
                             
             except Exception as e:
+                if _is_driver_dead_error(e):
+                    raise BrowserCrashedError(str(e))
                 pass
             
             # 상품명 백업 - 링크 텍스트에서
@@ -719,6 +942,8 @@ def extract_products(driver, max_products=30):
                 products.append(product)
                 
         except Exception as e:
+            if _is_driver_dead_error(e):
+                raise BrowserCrashedError(str(e))
             continue
     
     return products
@@ -754,13 +979,25 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         if close_cookie_popup(driver):
             log("  -> 쿠키 팝업 닫음")
             time.sleep(0.5)
+    except BrowserCrashedError:
+        raise
     except Exception as e:
+        if _is_driver_dead_error(e):
+            raise BrowserCrashedError(str(e))
         log(f" 오류: {e}")
         return {}
     
-    # 실제 존재하는 탭만 필터링
+    # 실제 존재하는 탭만 필터링 (라벨 미세 변경 대응: 정규화 비교)
     available_tabs = get_available_tabs(driver)
-    actual_tabs = [t for t in tabs if t in available_tabs or t == '모두보기']
+
+    def _tab_exists(desired, avail_list):
+        nd = _norm_text(desired)
+        for a in avail_list:
+            if _norm_text(a) == nd:
+                return True
+        return False
+
+    actual_tabs = [t for t in tabs if t == '모두보기' or _tab_exists(t, available_tabs)]
     
     if len(actual_tabs) < len(tabs):
         missing = set(tabs) - set(actual_tabs)
@@ -772,10 +1009,12 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         
         # 첫 번째 탭(모두보기)이 아니면 탭 클릭
         if tab_idx > 0:
+            # 탭 클릭 전 쿠키 팝업 재확인 (다른 카테고리 전환 후 다시 나타날 수 있음)
+            close_cookie_popup(driver)
             if not click_tab(driver, tab_name):
                 log(f"      -> 탭 클릭 실패, 건너뜀")
                 continue
-            time.sleep(3)
+            time.sleep(1)  # click_tab 내부에서 이미 상품 로딩 대기함
         
         # 상품 추출 (try-except로 개별 탭 오류 처리)
         try:
@@ -799,12 +1038,70 @@ def scrape_category_with_tabs(driver, category, url, tabs):
                         log(f"        {i}. {name_short:15s} | {p['price']:10s} | img:{has_img}")
             else:
                 log(f"      -> 상품 없음")
+        except BrowserCrashedError:
+            raise
         except Exception as e:
             log(f"      -> 추출 오류: {str(e)[:30]}")
         
         time.sleep(0.8)
     
     return all_data
+
+
+def _find_latest_uniqlo_v5_excel(work_dir):
+    pattern = os.path.join(work_dir, '유니클로_전체랭킹_이미지포함_V5_*.xlsx')
+    files = sorted(glob.glob(pattern), reverse=True)
+    return files[0] if files else None
+
+
+def _load_sheets_from_excel(filepath, skip_prefixes=None):
+    """기존 엑셀에서 시트 데이터를 로드 (이미지는 보존하지 않고 값만)"""
+    skip_prefixes = skip_prefixes or []
+    try:
+        wb = openpyxl.load_workbook(filepath, data_only=True)
+    except Exception as e:
+        log(f"  [WARN] 기존 엑셀 로드 실패: {e}")
+        return {}
+
+    loaded = {}
+    for sheet_name in wb.sheetnames:
+        if sheet_name == 'Sheet':
+            continue
+        if any(sheet_name.startswith(p) for p in skip_prefixes):
+            continue
+        ws = wb[sheet_name]
+        products = []
+        for r in range(2, ws.max_row + 1):
+            rank_val = ws.cell(r, 1).value
+            if rank_val is None:
+                continue
+            try:
+                rank_int = int(rank_val)
+            except Exception:
+                rank_int = r - 1
+
+            name = ws.cell(r, 3).value or ''
+            if not str(name).strip():
+                continue
+
+            product = {
+                'rank': rank_int,
+                'name': str(name).strip(),
+                'item_type': (ws.cell(r, 4).value or '미분류'),
+                'price': str(ws.cell(r, 5).value or ''),
+                'color_count': ws.cell(r, 6).value or 0,
+                'colors': str(ws.cell(r, 7).value or ''),
+                'rating': str(ws.cell(r, 8).value or '없음'),
+                'review_count': str(ws.cell(r, 9).value or '없음'),
+                'image_url': '',
+                'image_data': None,
+                'hd_image_data': None,
+            }
+            products.append(product)
+
+        if products:
+            loaded[sheet_name] = products
+    return loaded
 
 def create_excel(all_data, filename):
     """이미지가 포함된 엑셀 생성"""
@@ -925,6 +1222,24 @@ def main():
     log("=" * 60)
     log("  * 이미지를 엑셀에 직접 삽입합니다")
     log("=" * 60)
+
+    parser = argparse.ArgumentParser(description='유니클로 랭킹 크롤러 V5')
+    parser.add_argument('--only', type=str, default='', help='수집할 카테고리만 지정 (예: WOMEN,MEN)')
+    parser.add_argument('--preserve-missing-from-latest', action='store_true', help='지정하지 않은 카테고리 시트는 최신 V5 엑셀에서 값만 보존')
+    parser.add_argument('--skip-images', action='store_true', help='이미지 캡쳐/삽입을 건너뜀 (디버깅용)')
+    args = parser.parse_args()
+
+    global SKIP_IMAGES
+    if args.skip_images:
+        SKIP_IMAGES = True
+
+    selected_categories = list(CATEGORIES.keys())
+    if args.only.strip():
+        selected_categories = [c.strip().upper() for c in args.only.split(',') if c.strip()]
+        selected_categories = [c for c in selected_categories if c in CATEGORIES]
+        if not selected_categories:
+            log("  [WARN] --only 값이 유효하지 않아 전체 카테고리 수집으로 진행합니다")
+            selected_categories = list(CATEGORIES.keys())
     
     driver = setup_driver()
     all_data = {}
@@ -934,9 +1249,38 @@ def main():
         log("[2/4] 데이터 수집 시작")
         log("=" * 60)
         
-        for category, info in CATEGORIES.items():
-            data = scrape_category_with_tabs(driver, category, info['url'], info['tabs'])
-            all_data.update(data)
+        for category in selected_categories:
+            info = CATEGORIES[category]
+            for attempt in range(2):
+                try:
+                    data = scrape_category_with_tabs(driver, category, info['url'], info['tabs'])
+                    all_data.update(data)
+                    break
+                except BrowserCrashedError as e:
+                    log(f"  [WARN] 브라우저 세션 오류 감지: {str(e)[:80]}")
+                    if attempt >= 1:
+                        raise
+                    log("  [WARN] Chrome 재시작 후 카테고리 재시도...")
+                    try:
+                        driver.quit()
+                    except Exception:
+                        pass
+                    driver = setup_driver()
+
+        # 선택 수집 시, 나머지 시트는 최신 엑셀에서 값만 보존
+        if args.preserve_missing_from_latest and len(selected_categories) < len(CATEGORIES):
+            work_dir = os.path.dirname(os.path.abspath(__file__))
+            latest = _find_latest_uniqlo_v5_excel(work_dir)
+            if latest:
+                skip_prefixes = [f"{c}_" for c in selected_categories]
+                log(f"\n  -> 기존 데이터 보존: {os.path.basename(latest)}")
+                preserved = _load_sheets_from_excel(latest, skip_prefixes=skip_prefixes)
+                for k, v in preserved.items():
+                    if k not in all_data:
+                        all_data[k] = v
+                log(f"  -> 보존 시트 {len(preserved)}개 병합 완료")
+            else:
+                log("  [WARN] 보존할 최신 V5 엑셀을 찾지 못했습니다")
         
         # 엑셀 저장
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
