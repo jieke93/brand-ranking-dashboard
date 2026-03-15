@@ -761,6 +761,57 @@ def _build_df_from_history():
     return df
 
 
+def _list_history_dates(history):
+    """히스토리(dict)에서 사용 가능한 날짜 키 목록(내림차순)"""
+    dates = set()
+    for dates_data in (history or {}).values():
+        if isinstance(dates_data, dict):
+            dates.update(dates_data.keys())
+    # YYYYMMDD 문자열을 기본으로 가정하고 문자열 정렬
+    return sorted([d for d in dates if d], reverse=True)
+
+
+def _build_df_from_history_for_date(date_key):
+    """JSON 히스토리에서 특정 날짜(date_key)의 데이터로 DataFrame 구성"""
+    history = _load_all_history_raw()
+    if not history or not date_key:
+        return pd.DataFrame()
+
+    all_products = []
+    for full_key, dates_data in history.items():
+        if not isinstance(dates_data, dict) or date_key not in dates_data:
+            continue
+        items = dates_data.get(date_key) or {}
+        if not isinstance(items, dict):
+            continue
+
+        parts = full_key.split('_', 1)
+        brand = parts[0]
+        sheet = parts[1] if len(parts) > 1 else ''
+        cat_map = BRAND_CONFIG.get(brand, {}).get('category_map', {})
+        mapped_cat = cat_map.get(sheet, sheet)
+
+        for name, info in items.items():
+            if not isinstance(info, dict):
+                continue
+            raw_price = info.get('price', 0)
+            numeric_price = parse_price(raw_price) if isinstance(raw_price, str) else (raw_price if isinstance(raw_price, (int, float)) else 0)
+            price_str_val = str(raw_price) if raw_price else ''
+            all_products.append({
+                'brand': brand,
+                'category': mapped_cat,
+                'sheet': sheet,
+                'rank': info.get('rank', 0),
+                'name': name,
+                'item_type': info.get('item_type', classify_item_type(name, brand)),
+                'price': numeric_price,
+                'price_str': price_str_val,
+                'date': date_key,
+            })
+
+    return pd.DataFrame(all_products) if all_products else pd.DataFrame()
+
+
 def _load_all_history_raw():
     """모든 히스토리 JSON 통합 로드 (내부 구현, 캐시 없음)"""
     combined = {}
@@ -1401,6 +1452,17 @@ def page_top_items(df, image_map=None):
     if image_map is None:
         image_map = {}
 
+    # 날짜 선택: 과거 업데이트 시점별 핵심 아이템 조회
+    history_raw = _load_all_history_raw()
+    available_dates = _list_history_dates(history_raw)
+    if available_dates:
+        latest_date = available_dates[0]
+        selected_date = st.selectbox("기준 날짜", available_dates, index=0, key='top_items_date')
+        df = _build_df_from_history_for_date(selected_date)
+    else:
+        latest_date = None
+        selected_date = None
+
     # 중복 제거는 _get_gender_overall_top20 이후 결과에서 name 기준으로 적용
     # (전체 df에 먼저 dedup하면 유니클로 "모두보기" 시트 항목이 세부카테고리로 대체되어 누락됨)
     df_original = df.copy() if not df.empty else df
@@ -1451,10 +1513,21 @@ def page_top_items(df, image_map=None):
                 top_df = top_df[mask]
                 top_raw = top_raw[mask.values]
 
-            # 이미지 테이블 (각 행별 실제 sheet 사용)
-            bs_data = [(brand, s, r) for s, r in zip(top_raw['sheet'], top_raw['rank'])]
-            render_image_table(top_df, image_map, rank_col='순위', name_col='상품명',
-                               height=400, key_prefix=f'ti_{brand}', brand_sheet_data=bs_data)
+            # 이미지 테이블 (과거 날짜는 이미지 매칭 불일치 가능성이 있어 텍스트 테이블로 표시)
+            show_images = (selected_date is None) or (latest_date is None) or (selected_date == latest_date)
+            if show_images:
+                bs_data = [(brand, s, r) for s, r in zip(top_raw['sheet'], top_raw['rank'])]
+                render_image_table(
+                    top_df,
+                    image_map,
+                    rank_col='순위',
+                    name_col='상품명',
+                    height=400,
+                    key_prefix=f'ti_{brand}',
+                    brand_sheet_data=bs_data,
+                )
+            else:
+                st.dataframe(top_df, use_container_width=True)
 
             # 아이템타입 분포
             type_counts = bdf.nsmallest(top_n, 'rank')['item_type'].value_counts()
