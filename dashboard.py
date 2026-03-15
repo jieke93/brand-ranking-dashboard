@@ -1463,6 +1463,13 @@ def page_top_items(df, image_map=None):
         latest_date = None
         selected_date = None
 
+    # 최신 날짜일 때만 직전 날짜와 비교해 변동 표시
+    prev_date = None
+    df_prev = pd.DataFrame()
+    if available_dates and len(available_dates) >= 2 and selected_date == latest_date:
+        prev_date = available_dates[1]
+        df_prev = _build_df_from_history_for_date(prev_date)
+
     # 중복 제거는 _get_gender_overall_top20 이후 결과에서 name 기준으로 적용
     # (전체 df에 먼저 dedup하면 유니클로 "모두보기" 시트 항목이 세부카테고리로 대체되어 누락됨)
     df_original = df.copy() if not df.empty else df
@@ -1494,8 +1501,44 @@ def page_top_items(df, image_map=None):
             top_raw['display_rank'] = range(1, len(top_raw) + 1)
             original_ranks = top_raw['rank'].values.copy()
 
-            top_df = top_raw[['display_rank', 'name', 'item_type', 'price_str']].copy()
-            top_df.columns = ['순위', '상품명', '아이템타입', '가격']
+            # 변동(상승/하강/신규) 계산: 최신 날짜에서만 직전 날짜와 비교
+            change_labels = []
+            if prev_date and not df_prev.empty:
+                prev_bdf = _get_gender_overall_top20(df_prev, brand, gender)
+                if prev_bdf.empty:
+                    prev_bdf = get_compare_data(df_prev, brand, gender)
+                prev_rank_by_name = {}
+                if not prev_bdf.empty:
+                    # 동명 상품이 여러 시트에 있으면 가장 좋은(rank 최소) 값 사용
+                    for _, prow in prev_bdf[['name', 'rank']].dropna().iterrows():
+                        pname = str(prow['name'])
+                        prank = int(prow['rank']) if pd.notna(prow['rank']) else None
+                        if prank is None:
+                            continue
+                        if pname not in prev_rank_by_name or prank < prev_rank_by_name[pname]:
+                            prev_rank_by_name[pname] = prank
+
+                for _, crow in top_raw.iterrows():
+                    cname = str(crow['name'])
+                    crank = int(crow['rank']) if pd.notna(crow['rank']) else 0
+                    prank = prev_rank_by_name.get(cname)
+                    if prank is None:
+                        change_labels.append('신규')
+                        continue
+                    delta = prank - crank
+                    if delta > 0:
+                        change_labels.append(f'상승{delta}')
+                    elif delta < 0:
+                        change_labels.append(f'하강{abs(delta)}')
+                    else:
+                        change_labels.append('-')
+            else:
+                change_labels = ['-'] * len(top_raw)
+
+            top_raw['change'] = change_labels
+
+            top_df = top_raw[['display_rank', 'name', 'item_type', 'change', 'price_str']].copy()
+            top_df.columns = ['순위', '상품명', '아이템타입', '변동', '가격']
 
             # 필터링
             ti_fc1, ti_fc2 = st.columns(2)
