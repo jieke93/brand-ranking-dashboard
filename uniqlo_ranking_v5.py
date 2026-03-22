@@ -416,6 +416,10 @@ def capture_image_from_element(element, driver=None):
         return None
     
     try:
+        # 캡쳐 직전 예상치 못한 창(ftc.go.kr 등) 닫기
+        if driver:
+            close_unexpected_windows(driver)
+
         # 캡쳐 직전 쿠키/오버레이를 다시 제거 (배너가 스크롤 중 재등장하는 케이스 대응)
         if driver:
             if _cookie_banner_present(driver):
@@ -1041,6 +1045,7 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         return {}
     
     # 실제 존재하는 탭만 필터링 (라벨 미세 변경 대응: 정규화 비교)
+    close_unexpected_windows(driver)
     available_tabs = get_available_tabs(driver)
 
     def _tab_exists(desired, avail_list):
