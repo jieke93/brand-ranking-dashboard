@@ -452,34 +452,17 @@ def get_color_name(code):
     return COLOR_MAP.get(code, f'COLOR_{code}')
 
 def _capture_image_inner(element, driver):
-    """capture_image_from_element 내부 로직 (스레드 안에서 실행됨)"""
-    # 캡쳐 직전 쿠키/오버레이 제거
+    """capture_image_from_element 내부 로직 (스레드 안에서 실행됨) - 간소화 버전"""
+    # 요소를 뷰포트로 스크롤 + 오버레이 제거 (JS 한 번으로)
     if driver:
-        if _cookie_banner_present(driver):
-            close_cookie_popup(driver)
-        _force_remove_onetrust_dom(driver)
-
-    # 요소를 뷰포트로 스크롤
-    if driver:
-        driver.execute_script(
-            "arguments[0].scrollIntoView({block: 'center'});", element)
-        time.sleep(0.4)
-
-    # 스크롤 후 배너 제거
-    if driver:
-        if _cookie_banner_present(driver):
-            close_cookie_popup(driver)
-        _force_remove_onetrust_dom(driver)
-
-    # 이미지 로드 확인
-    if driver:
-        try:
-            driver.execute_script(
-                "return arguments[0].complete && "
-                "arguments[0].naturalWidth > 0;", element)
-        except Exception:
-            pass
-        time.sleep(0.6)
+        driver.execute_script("""
+            arguments[0].scrollIntoView({block: 'center'});
+            var b = document.getElementById('onetrust-banner-sdk');
+            if (b) b.style.display = 'none';
+            var o = document.querySelector('.onetrust-pc-dark-filter');
+            if (o) o.style.display = 'none';
+        """, element)
+        time.sleep(0.5)
 
     # PNG 스크린샷 캡처
     png_data = element.screenshot_as_png
