@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 import urllib.robotparser
 import requests
+import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from PIL import Image as PILImage
 
@@ -73,9 +74,30 @@ def safe_get(driver, url):
     return True
 
 
+def _run_with_timeout(func, timeout_sec=10):
+    """func를 별도 스레드에서 실행하고, timeout_sec 초 안에 끝나지 않으면 None 반환.
+    Selenium 호출이 hang될 때 전체 크롤러가 멈추는 것을 방지."""
+    result_box = [None]
+    error_box = [None]
+    def _worker():
+        try:
+            result_box[0] = func()
+        except Exception as e:
+            error_box[0] = e
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    t.join(timeout=timeout_sec)
+    if t.is_alive():
+        log(f"  [TIMEOUT] Selenium 호출 {timeout_sec}초 타임아웃")
+        return None  # 스레드가 살아있지만 daemon이므로 무시
+    if error_box[0] is not None:
+        raise error_box[0]
+    return result_box[0]
+
+
 def close_unexpected_windows(driver):
     """예상치 못한 새 탭/창(예: ftc.go.kr CAPTCHA)이 열리면 닫고 원래 탭으로 복귀"""
-    try:
+    def _inner():
         handles = driver.window_handles
         if len(handles) <= 1:
             return
@@ -89,6 +111,8 @@ def close_unexpected_windows(driver):
             except Exception:
                 pass
         driver.switch_to.window(main_handle)
+    try:
+        _run_with_timeout(_inner, timeout_sec=8)
     except Exception:
         pass
 
@@ -410,67 +434,74 @@ def get_color_name(code):
     code = str(code).zfill(2)
     return COLOR_MAP.get(code, f'COLOR_{code}')
 
+def _capture_image_inner(element, driver):
+    """capture_image_from_element 내부 로직 (스레드 안에서 실행됨)"""
+    # 캡쳐 직전 쿠키/오버레이 제거
+    if driver:
+        if _cookie_banner_present(driver):
+            close_cookie_popup(driver)
+        _force_remove_onetrust_dom(driver)
+
+    # 요소를 뷰포트로 스크롤
+    if driver:
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", element)
+        time.sleep(0.4)
+
+    # 스크롤 후 배너 제거
+    if driver:
+        if _cookie_banner_present(driver):
+            close_cookie_popup(driver)
+        _force_remove_onetrust_dom(driver)
+
+    # 이미지 로드 확인
+    if driver:
+        try:
+            driver.execute_script(
+                "return arguments[0].complete && "
+                "arguments[0].naturalWidth > 0;", element)
+        except Exception:
+            pass
+        time.sleep(0.6)
+
+    # PNG 스크린샷 캡처
+    png_data = element.screenshot_as_png
+    if not png_data:
+        return None
+
+    img = PILImage.open(io.BytesIO(png_data))
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+
+    img_small = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+    buf_small = io.BytesIO()
+    img_small.save(buf_small, format='JPEG', quality=85)
+    buf_small.seek(0)
+
+    img_hd = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+    buf_hd = io.BytesIO()
+    img_hd.save(buf_hd, format='JPEG', quality=90)
+    buf_hd.seek(0)
+
+    return (buf_small, buf_hd)
+
+
 def capture_image_from_element(element, driver=None):
-    """요소를 스크린샷 캡처하여 (엑셀용, HD용) 튜플로 반환"""
+    """요소를 스크린샷 캡처하여 (엑셀용, HD용) 튜플로 반환 (타임아웃 보호)"""
     if SKIP_IMAGES:
         return None
-    
+
     try:
-        # 캡쳐 직전 예상치 못한 창(ftc.go.kr 등) 닫기
+        # 캡쳐 전 예상치 못한 창 닫기
         if driver:
             close_unexpected_windows(driver)
 
-        # 캡쳐 직전 쿠키/오버레이를 다시 제거 (배너가 스크롤 중 재등장하는 케이스 대응)
-        if driver:
-            if _cookie_banner_present(driver):
-                close_cookie_popup(driver)
-            _force_remove_onetrust_dom(driver)
-
-        # 요소를 뷰포트로 스크롤 → 이미지 lazy-load 대기
-        if driver:
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", element)
-            time.sleep(0.4)       # 스크롤 안정화
-
-        # 스크롤 후 다시 뜨는 배너 제거
-        if driver:
-            if _cookie_banner_present(driver):
-                close_cookie_popup(driver)
-            _force_remove_onetrust_dom(driver)
-
-        # 이미지가 완전히 로드될 때까지 대기
-        if driver:
-            try:
-                driver.execute_script(
-                    "return arguments[0].complete && "
-                    "arguments[0].naturalWidth > 0;", element)
-            except Exception:
-                pass
-            time.sleep(0.6)       # 렌더링 여유
-
-        # 요소를 PNG로 스크린샷 캡처
-        png_data = element.screenshot_as_png
-        if not png_data:
-            return None
-        
-        # PIL로 열기
-        img = PILImage.open(io.BytesIO(png_data))
-        if img.mode in ('RGBA', 'P'):
-            img = img.convert('RGB')
-        
-        # 엑셀용 (작은 사이즈)
-        img_small = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
-        buf_small = io.BytesIO()
-        img_small.save(buf_small, format='JPEG', quality=85)
-        buf_small.seek(0)
-
-        # 대시보드용 HD (큰 사이즈)
-        img_hd = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
-        buf_hd = io.BytesIO()
-        img_hd.save(buf_hd, format='JPEG', quality=90)
-        buf_hd.seek(0)
-
-        return (buf_small, buf_hd)
+        # 전체 캡처를 15초 타임아웃으로 실행
+        result = _run_with_timeout(
+            lambda: _capture_image_inner(element, driver),
+            timeout_sec=15
+        )
+        return result
     except Exception as e:
         if _is_driver_dead_error(e):
             raise BrowserCrashedError(str(e))
@@ -646,6 +677,7 @@ def click_tab(driver, tab_name, timeout=10):
     start_time = time.time()
     
     try:
+        close_unexpected_windows(driver)
         log(f"      -> '{tab_name}' 탭 찾는 중...", end='')
         
         # 클릭 전 현재 상품 개수 기록 (탭 전환 감지용)
@@ -845,6 +877,9 @@ def extract_products(driver, max_products=30):
     
     log(f"      [DEBUG] {min(max_products, len(product_tiles))}개 상품 처리 시작")
     for idx, tile in enumerate(product_tiles[:max_products], 1):
+        # 매 5개 상품마다 예상치 못한 창(ftc.go.kr 등) 닫기
+        if idx % 5 == 1:
+            close_unexpected_windows(driver)
         try:
             product = {
                 'rank': idx,
