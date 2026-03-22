@@ -586,6 +586,13 @@ def setup_driver():
     except Exception:
         pass
     
+    # ftc.go.kr 네트워크 요청 자체를 차단 (CDP)
+    try:
+        driver.execute_cdp_cmd('Network.setBlockedURLs', {'urls': ['*ftc.go.kr*']})
+        driver.execute_cdp_cmd('Network.enable', {})
+    except Exception:
+        pass
+    
     log("  [OK] 완료!\n")
     return driver
 
@@ -821,8 +828,154 @@ def click_tab(driver, tab_name, timeout=10):
         log(f" 오류: {e}")
         return False
 
+# ── JS 일괄 추출용 스크립트 (skip_images 모드 전용) ───────────────
+_JS_EXTRACT_ALL = """
+var maxProducts = arguments[0];
+var selectors = ['.product-tile', "[data-testid='product-tile']", '.fr-ec-product-tile'];
+var tiles = [];
+for (var s = 0; s < selectors.length; s++) {
+    var found = document.querySelectorAll(selectors[s]);
+    if (found.length > tiles.length) tiles = Array.from(found);
+}
+var results = [];
+var limit = Math.min(maxProducts, tiles.length);
+for (var i = 0; i < limit; i++) {
+    var tile = tiles[i];
+    var p = {rank: i+1, name:'', price:'', image_url:'', color_codes:[], rating:'없음', review_count:'없음'};
+
+    /* 상품명 + 이미지 URL */
+    var activeImg = tile.querySelector('.swiper-slide-active img.image__img');
+    if (activeImg) {
+        p.name = activeImg.getAttribute('alt') || '';
+        p.image_url = activeImg.getAttribute('data-src') || activeImg.getAttribute('src') || '';
+    }
+    if (!p.image_url) {
+        var imgs = tile.querySelectorAll('img.image__img');
+        for (var j = 0; j < imgs.length; j++) {
+            var alt = imgs[j].getAttribute('alt') || '';
+            if (alt && !/^\\d+$/.test(alt)) {
+                p.name = alt;
+                var u = imgs[j].getAttribute('data-src') || imgs[j].getAttribute('src') || '';
+                if (u) { p.image_url = u; break; }
+            }
+        }
+    }
+    if (!p.image_url) {
+        var itoImgs = tile.querySelectorAll("[data-testid='ITOImage'] img");
+        for (var j = 0; j < itoImgs.length; j++) {
+            var u2 = itoImgs[j].getAttribute('data-src') || itoImgs[j].getAttribute('src');
+            if (u2 && u2.indexOf('uniqlo') >= 0) {
+                p.image_url = u2;
+                if (!p.name) p.name = itoImgs[j].getAttribute('alt') || '';
+                break;
+            }
+        }
+    }
+    if (!p.name) {
+        var link = tile.querySelector('a.product-tile__link');
+        if (link) p.name = link.textContent.trim().split('\\n')[0];
+    }
+
+    /* 가격 */
+    var priceElems = tile.querySelectorAll("[data-testid='ITOTypography']");
+    for (var j = 0; j < priceElems.length; j++) {
+        var txt = priceElems[j].textContent.trim();
+        if (txt.indexOf('원') >= 0 && txt.length < 20) { p.price = txt; break; }
+    }
+    if (!p.price) {
+        var spans = tile.querySelectorAll('span');
+        for (var j = 0; j < spans.length; j++) {
+            var txt2 = spans[j].textContent.trim();
+            if (txt2.indexOf('원') >= 0 && txt2.length < 20) { p.price = txt2; break; }
+        }
+    }
+
+    /* 컬러 코드 */
+    var chips = tile.querySelectorAll('.product-tile__image-chip-group-item img');
+    for (var j = 0; j < chips.length; j++) {
+        var ca = chips[j].getAttribute('alt');
+        if (ca && /^\\d+$/.test(ca) && p.color_codes.indexOf(ca) < 0) p.color_codes.push(ca);
+    }
+
+    /* 평점/리뷰 */
+    var re = tile.querySelector('.fr-ec-rating-static, [role="figure"]');
+    if (re) {
+        var rv = re.getAttribute('reviews');
+        if (rv) p.review_count = rv;
+        var fs = tile.querySelectorAll('.fr-ec-star--full').length;
+        var hs = tile.querySelectorAll('.fr-ec-star--half').length;
+        if (fs > 0) p.rating = String(fs + hs * 0.5);
+    }
+    if (p.rating === '없음') {
+        var rt = tile.querySelector('.fr-ec-rating-average-product-tile');
+        if (rt) { var m = rt.textContent.match(/(\\d+\\.?\\d*)/); if (m) p.rating = m[1]; }
+    }
+
+    if (p.name) results.push(p);
+}
+return results;
+"""
+
+
+def _extract_products_fast_js(driver, max_products=30):
+    """JavaScript 한 번 호출로 상품 데이터를 일괄 추출 (Phase 1 skip_images 전용).
+    개별 Selenium find_element/get_attribute 호출을 제거하여 hang 방지."""
+    log("      [DEBUG] JS 일괄 추출 모드")
+
+    # 빠른 스크롤 (lazy loading 트리거)
+    r = _run_with_timeout(
+        lambda: driver.execute_script(
+            "window.scrollTo(0, document.body.scrollHeight); return true;"
+        ), timeout_sec=10)
+    if r is None:
+        raise BrowserCrashedError("스크롤 타임아웃 - 브라우저 응답 없음")
+
+    threading.Event().wait(timeout=1.5)
+
+    _run_with_timeout(
+        lambda: driver.execute_script("window.scrollTo(0, 0); return true;"),
+        timeout_sec=10)
+
+    # JS 일괄 추출
+    raw = _run_with_timeout(
+        lambda: driver.execute_script(_JS_EXTRACT_ALL, max_products),
+        timeout_sec=20)
+
+    if raw is None:
+        raise BrowserCrashedError("JS 추출 타임아웃 - 브라우저 응답 없음")
+
+    products = []
+    for item in raw:
+        color_codes = item.get('color_codes', [])
+        color_names = []
+        seen = set()
+        for c in color_codes:
+            name = get_color_name(c)
+            if name not in seen:
+                color_names.append(name)
+                seen.add(name)
+        products.append({
+            'rank': item['rank'],
+            'name': item['name'],
+            'price': item.get('price', ''),
+            'item_type': '미분류',
+            'color_count': len(color_names),
+            'colors': ', '.join(color_names) if color_names else '정보없음',
+            'rating': item.get('rating', '없음'),
+            'review_count': item.get('review_count', '없음'),
+            'image_url': item.get('image_url', ''),
+            'image_data': None,
+        })
+
+    log(f"      -> {len(products)}개 수집 (JS 일괄)")
+    return products
+
+
 def extract_products(driver, max_products=30, skip_images=False):
-    """상품 데이터 추출 - skip_images=True이면 이미지 캡처 건너뜀 (빠른 수집)"""
+    """상품 데이터 추출 - skip_images=True이면 JS 일괄 추출 (빠르고 안전)"""
+    if skip_images:
+        return _extract_products_fast_js(driver, max_products)
+
     products = []
     log("      [DEBUG] 상품 추출 시작...")
     
