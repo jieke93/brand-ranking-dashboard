@@ -812,8 +812,8 @@ def click_tab(driver, tab_name, timeout=10):
         log(f" 오류: {e}")
         return False
 
-def extract_products(driver, max_products=30):
-    """상품 데이터 추출 - 이미지 다운로드 포함 (멈춤 방지 강화)"""
+def extract_products(driver, max_products=30, skip_images=False):
+    """상품 데이터 추출 - skip_images=True이면 이미지 캡처 건너뜀 (빠른 수집)"""
     products = []
     log("      [DEBUG] 상품 추출 시작...")
     
@@ -932,7 +932,7 @@ def extract_products(driver, max_products=30):
                             break
                 
                 # 이미지 스크린샷 캡쳐 (네트워크 요청 없이 빠름!)
-                if not SKIP_IMAGES:
+                if not SKIP_IMAGES and not skip_images:
                     img_elem = product.get('image_element')
                     if not img_elem:
                         # 이미지 요소 찾기
@@ -1044,8 +1044,8 @@ def classify_products(products, tab_name=''):
         p['item_type'] = classify_item_type(p['name'], tab_name)
     return products
 
-def scrape_category_with_tabs(driver, category, url, tabs):
-    """카테고리와 모든 탭 크롤링"""
+def scrape_category_with_tabs(driver, category, url, tabs, skip_images=False):
+    """카테고리와 모든 탭 크롤링 (skip_images=True이면 이미지 없이 빠르게)"""
     all_data = {}
     
     log(f"\n{'='*60}")
@@ -1113,7 +1113,7 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         
         # 상품 추출 (try-except로 개별 탭 오류 처리)
         try:
-            products = extract_products(driver, max_products=30)
+            products = extract_products(driver, max_products=30, skip_images=skip_images)
             
             # 아이템 타입 자동 분류 적용
             if products:
