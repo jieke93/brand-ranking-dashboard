@@ -1509,9 +1509,11 @@ def _save_hd_images(all_data, brand_name, excel_filename):
 
 def main():
     log("\n" + "=" * 60)
-    log("  유니클로 랭킹 크롤러 V5 (이미지 삽입 버전)")
+    log("  유니클로 랭킹 크롤러 V5 (3단계 고속 버전)")
     log("=" * 60)
-    log("  * 이미지를 엑셀에 직접 삽입합니다")
+    log("  * Phase 1: 이미지 없이 전체 랭킹 빠르게 수집")
+    log("  * Phase 2: 기존 이미지에서 동일 상품명 매칭")
+    log("  * Phase 3: 누락 이미지만 스크린샷 캡쳐")
     log("=" * 60)
 
     parser = argparse.ArgumentParser(description='유니클로 랭킹 크롤러 V5')
@@ -1536,15 +1538,21 @@ def main():
     all_data = {}
     
     try:
+        # ============================================================
+        # Phase 1: 이미지 없이 전체 랭킹 빠르게 수집
+        # ============================================================
         log("\n" + "=" * 60)
-        log("[2/4] 데이터 수집 시작")
+        log("[Phase 1] 이미지 없이 전체 랭킹 빠르게 수집")
         log("=" * 60)
+        
+        import time as _time
+        phase1_start = _time.time()
         
         for category in selected_categories:
             info = CATEGORIES[category]
             for attempt in range(2):
                 try:
-                    data = scrape_category_with_tabs(driver, category, info['url'], info['tabs'])
+                    data = scrape_category_with_tabs(driver, category, info['url'], info['tabs'], skip_images=True)
                     all_data.update(data)
                     break
                 except BrowserCrashedError as e:
@@ -1557,6 +1565,10 @@ def main():
                     except Exception:
                         pass
                     driver = setup_driver()
+        
+        phase1_elapsed = _time.time() - phase1_start
+        total_p1 = sum(len(prods) for prods in all_data.values())
+        log(f"\n  [Phase 1 완료] {len(all_data)}개 시트, {total_p1}개 상품 수집 ({phase1_elapsed:.0f}초)")
 
         # 선택 수집 시, 나머지 시트는 최신 엑셀에서 값만 보존
         if args.preserve_missing_from_latest and len(selected_categories) < len(CATEGORIES):
@@ -1573,19 +1585,64 @@ def main():
             else:
                 log("  [WARN] 보존할 최신 V5 엑셀을 찾지 못했습니다")
         
+        # ============================================================
+        # Phase 2: 기존 이미지에서 동일 상품명 매칭
+        # ============================================================
+        if not SKIP_IMAGES:
+            log("\n" + "=" * 60)
+            log("[Phase 2] 기존 이미지 매칭")
+            log("=" * 60)
+            
+            hd_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'product_images_hd')
+            missing_products = _reuse_existing_images(all_data, hd_dir)
+            
+            # ============================================================
+            # Phase 3: 누락 이미지만 스크린샷
+            # ============================================================
+            if missing_products:
+                log("\n" + "=" * 60)
+                log(f"[Phase 3] 누락 이미지 {len(missing_products)}개 스크린샷")
+                log("=" * 60)
+                
+                phase3_start = _time.time()
+                try:
+                    _screenshot_missing_images(driver, all_data, missing_products)
+                except BrowserCrashedError as e:
+                    log(f"  [WARN] Phase 3 브라우저 오류: {str(e)[:80]}")
+                    log("  -> Chrome 재시작 후 재시도...")
+                    try:
+                        driver.quit()
+                    except Exception:
+                        pass
+                    driver = setup_driver()
+                    try:
+                        # 재시도 시 아직 이미지 없는 것만 필터
+                        still_missing = [(s, i, p) for s, i, p in missing_products if not p.get('image_data')]
+                        if still_missing:
+                            _screenshot_missing_images(driver, all_data, still_missing)
+                    except Exception as e2:
+                        log(f"  [WARN] Phase 3 재시도 실패: {str(e2)[:50]}")
+                
+                phase3_elapsed = _time.time() - phase3_start
+                log(f"  -> Phase 3 소요시간: {phase3_elapsed:.0f}초")
+            else:
+                log("\n  [Phase 3] 모든 이미지 매칭 완료 - 스크린샷 불필요!")
+        
+        # ============================================================
         # 엑셀 저장
+        # ============================================================
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"유니클로_전체랭킹_이미지포함_V5_{timestamp}.xlsx"
         create_excel(all_data, filename)
         
         # 최종 통계
         log(f"\n{'='*60}")
-        log(f"[4/4] 수집 완료 통계")
+        log(f"[완료] 수집 통계")
         log(f"{'='*60}")
         
         total_products = sum(len(p) for p in all_data.values())
         total_with_price = sum(1 for prods in all_data.values() for p in prods if p['price'])
-        total_with_img = sum(1 for prods in all_data.values() for p in prods if p['image_data'])
+        total_with_img = sum(1 for prods in all_data.values() for p in prods if p.get('image_data'))
         total_with_rating = sum(1 for prods in all_data.values() for p in prods if p['rating'] != '없음')
         total_with_review = sum(1 for prods in all_data.values() for p in prods if p['review_count'] != '없음')
         
