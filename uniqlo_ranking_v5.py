@@ -15,8 +15,8 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from PIL import Image as PILImage
 
-# 전역 소켓 타임아웃 설정 (멈춤 방지)
-socket.setdefaulttimeout(5)
+# 전역 소켓 타임아웃 설정 (Selenium 통신에 영향주지 않도록 충분히 길게)
+socket.setdefaulttimeout(120)
 
 # 이미지 설정
 IMG_WIDTH = 80  # 엑셀에 삽입할 이미지 너비 (픽셀)
