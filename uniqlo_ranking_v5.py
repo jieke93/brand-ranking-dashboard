@@ -492,10 +492,6 @@ def capture_image_from_element(element, driver=None):
         return None
 
     try:
-        # 캡쳐 전 예상치 못한 창 닫기
-        if driver:
-            close_unexpected_windows(driver)
-
         # 전체 캡처를 15초 타임아웃으로 실행
         result = _run_with_timeout(
             lambda: _capture_image_inner(element, driver),
@@ -586,10 +582,10 @@ def setup_driver():
     except Exception:
         pass
     
-    # ftc.go.kr 네트워크 요청 자체를 차단 (CDP)
+    # ftc.go.kr 네트워크 요청 자체를 차단 (CDP - enable 먼저!)
     try:
-        driver.execute_cdp_cmd('Network.setBlockedURLs', {'urls': ['*ftc.go.kr*']})
         driver.execute_cdp_cmd('Network.enable', {})
+        driver.execute_cdp_cmd('Network.setBlockedURLs', {'urls': ['*ftc.go.kr*']})
     except Exception:
         pass
     
