@@ -95,6 +95,23 @@ def _run_with_timeout(func, timeout_sec=10):
     return result_box[0]
 
 
+def _safe_quit_driver(driver):
+    """driver.quit()를 타임아웃 보호하여 호출. hang 시 프로세스 강제 종료."""
+    import subprocess
+    try:
+        r = _run_with_timeout(lambda: driver.quit(), timeout_sec=10)
+        if r is None:
+            log("  [WARN] driver.quit() 타임아웃 → 프로세스 강제 종료")
+            subprocess.run(['taskkill', '/F', '/IM', 'chromedriver.exe'], capture_output=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'chrome.exe'], capture_output=True)
+    except Exception:
+        try:
+            subprocess.run(['taskkill', '/F', '/IM', 'chromedriver.exe'], capture_output=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'chrome.exe'], capture_output=True)
+        except Exception:
+            pass
+
+
 def close_unexpected_windows(driver):
     """예상치 못한 새 탭/창(예: ftc.go.kr CAPTCHA)이 열리면 닫고 원래 탭으로 복귀"""
     def _inner():
@@ -1731,10 +1748,7 @@ def main():
                     if attempt >= 1:
                         raise
                     log("  [WARN] Chrome 재시작 후 카테고리 재시도...")
-                    try:
-                        driver.quit()
-                    except Exception:
-                        pass
+                    _safe_quit_driver(driver)
                     driver = setup_driver()
         
         phase1_elapsed = _time.time() - phase1_start
@@ -1781,10 +1795,7 @@ def main():
                 except BrowserCrashedError as e:
                     log(f"  [WARN] Phase 3 브라우저 오류: {str(e)[:80]}")
                     log("  -> Chrome 재시작 후 재시도...")
-                    try:
-                        driver.quit()
-                    except Exception:
-                        pass
+                    _safe_quit_driver(driver)
                     driver = setup_driver()
                     try:
                         # 재시도 시 아직 이미지 없는 것만 필터
@@ -1827,7 +1838,7 @@ def main():
         log("=" * 60)
         
     finally:
-        driver.quit()
+        _safe_quit_driver(driver)
         log("\n브라우저 종료")
 
 if __name__ == "__main__":
