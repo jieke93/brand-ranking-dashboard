@@ -1529,13 +1529,38 @@ def _reuse_existing_images(all_data, hd_dir):
     return missing_products
 
 
+def _save_hd_image_immediately(prod, sheet_name, hd_dir):
+    """Phase 3 도중 HD 이미지를 즉시 디스크에 저장 (다음 실행 시 Phase 2에서 재활용)"""
+    hd_data = prod.get('hd_image_data')
+    if not hd_data:
+        return
+    try:
+        name = prod.get('name', '')[:20]
+        safe = re.sub(r'[^\w\s-]', '', name).strip().replace(' ', '_')
+        fname = f"p3_{sheet_name}_{prod['rank']}_{safe}.jpg"
+        fpath = os.path.join(hd_dir, fname)
+        if not os.path.exists(fpath):
+            hd_data.seek(0)
+            with open(fpath, 'wb') as f:
+                f.write(hd_data.read())
+    except Exception:
+        pass
+
+
 def _screenshot_missing_images(driver, all_data, missing_products):
-    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷 (timeout 보호)"""
+    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷 (timeout 보호)
+    - HD 이미지를 즉시 디스크 저장 (크래시 시에도 보존)
+    - 연속 실패 시 Chrome 재시작
+    - driver를 반환 (재시작될 수 있으므로)
+    """
     if not missing_products:
         log("\n  [Phase 3] 누락 이미지 없음 - 스크린샷 건너뜀")
-        return
+        return driver
     
     log(f"\n  [Phase 3] 누락 이미지 {len(missing_products)}개 스크린샷 시작")
+    
+    hd_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'product_images_hd')
+    os.makedirs(hd_dir, exist_ok=True)
     
     # 시트별로 그룹핑 (같은 페이지의 상품을 한 번에 처리)
     from collections import defaultdict
@@ -1561,7 +1586,14 @@ def _screenshot_missing_images(driver, all_data, missing_products):
         
         try:
             if not safe_get(driver, url):
-                continue
+                # safe_get 실패 시 Chrome 재시작 후 재시도
+                log(f"      -> safe_get 실패, Chrome 재시작")
+                _safe_quit_driver(driver)
+                driver = setup_driver()
+                if not safe_get(driver, url):
+                    log(f"      -> 재시작 후에도 실패, 건너뜀")
+                    continue
+            
             # 페이지 로딩 대기
             for _ in range(5):
                 time.sleep(0.8)
@@ -1569,10 +1601,19 @@ def _screenshot_missing_images(driver, all_data, missing_products):
             close_cookie_popup(driver)
             close_unexpected_windows(driver)
             
-            # 드라이버 응답 확인 (팝업 처리 후 세션이 살아있는지)
+            # 드라이버 응답 확인
             alive = _run_with_timeout(lambda: driver.execute_script("return true;"), timeout_sec=10)
             if alive is None:
-                raise BrowserCrashedError("Phase 3 드라이버 응답 없음")
+                log(f"      -> 드라이버 응답 없음, Chrome 재시작")
+                _safe_quit_driver(driver)
+                driver = setup_driver()
+                if not safe_get(driver, url):
+                    continue
+                time.sleep(4)
+                alive = _run_with_timeout(lambda: driver.execute_script("return true;"), timeout_sec=10)
+                if alive is None:
+                    log(f"      -> 재시작 후에도 응답 없음, 건너뜀")
+                    continue
             
             # 탭 클릭 (모두보기가 아닌 경우)
             if tab_name != '모두보기':
@@ -1597,7 +1638,10 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 })(); return true;
             """), timeout_sec=15)
             if scroll_r is None:
-                raise BrowserCrashedError("Phase 3 스크롤 타임아웃")
+                log(f"      -> 스크롤 타임아웃, Chrome 재시작")
+                _safe_quit_driver(driver)
+                driver = setup_driver()
+                continue
             
             threading.Event().wait(timeout=5.0)
             close_unexpected_windows(driver)
@@ -1605,13 +1649,23 @@ def _screenshot_missing_images(driver, all_data, missing_products):
             # 상품 타일 찾기 (timeout 보호)
             product_tiles = _run_with_timeout(lambda: _find_product_tiles(driver), timeout_sec=10)
             if product_tiles is None:
-                raise BrowserCrashedError("Phase 3 타일 검색 타임아웃")
+                log(f"      -> 타일 검색 타임아웃, Chrome 재시작")
+                _safe_quit_driver(driver)
+                driver = setup_driver()
+                continue
             if not product_tiles:
                 log(f"      -> 상품 타일 없음, 건너뜀")
                 continue
             
             captured = 0
+            consecutive_fail = 0
             for prod_idx, prod in items:
+                if consecutive_fail >= 3:
+                    log(f"      -> 연속 3회 실패, 나머지 {len(items) - captured}개 건너뜀 → Chrome 재시작")
+                    _safe_quit_driver(driver)
+                    driver = setup_driver()
+                    break
+                
                 rank = prod.get('rank', 0)
                 if rank < 1 or rank > len(product_tiles):
                     continue
@@ -1635,20 +1689,38 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                     if img_data:
                         prod['image_data'] = img_data[0]
                         prod['hd_image_data'] = img_data[1]
-                        # all_data에도 반영 (같은 객체 참조이므로 자동)
+                        _save_hd_image_immediately(prod, sheet_name, hd_dir)
                         captured += 1
+                        consecutive_fail = 0
+                    else:
+                        consecutive_fail += 1
+                else:
+                    consecutive_fail += 1
             
             captured_total += captured
             log(f"      -> {captured}/{len(items)}개 스크린샷 완료")
             
         except BrowserCrashedError:
-            raise
+            log(f"      -> BrowserCrashedError, Chrome 재시작 후 계속")
+            try:
+                _safe_quit_driver(driver)
+            except Exception:
+                pass
+            driver = setup_driver()
+            continue
         except Exception as e:
             if _is_driver_dead_error(e):
-                raise BrowserCrashedError(str(e))
+                log(f"      -> 드라이버 사망, Chrome 재시작 후 계속")
+                try:
+                    _safe_quit_driver(driver)
+                except Exception:
+                    pass
+                driver = setup_driver()
+                continue
             log(f"      -> 스크린샷 오류: {str(e)[:50]}")
     
     log(f"\n  [Phase 3 완료] 총 {captured_total}/{len(missing_products)}개 스크린샷 성공")
+    return driver
 
 
 def _save_hd_images(all_data, brand_name, excel_filename):
