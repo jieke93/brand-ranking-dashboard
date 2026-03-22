@@ -771,11 +771,27 @@ def extract_products(driver, max_products=30):
     # 스크롤하여 상품 로드 (lazy-load 이미지 트리거)
     try:
         log("      [DEBUG] 스크롤 시작 (이미지 로딩 대기)")
-        for i in range(3):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1.0)   # 이미지 로딩 대기
-        driver.execute_script("window.scrollTo(0, 0);")
-        time.sleep(1.0)
+        # JavaScript 내부에서 스크롤 + 대기를 처리 (Python sleep 회피)
+        driver.execute_script("""
+            (function() {
+                var steps = 3;
+                var i = 0;
+                function doScroll() {
+                    if (i < steps) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                        i++;
+                        setTimeout(doScroll, 1000);
+                    } else {
+                        window.scrollTo(0, 0);
+                    }
+                }
+                doScroll();
+            })();
+        """)
+        # WebDriverWait으로 대기 (time.sleep 대신)
+        WebDriverWait(driver, 10).until(lambda d: True)
+        import threading
+        threading.Event().wait(timeout=5.0)
         log("      [DEBUG] 스크롤 완료")
     except BaseException as e:
         log(f"      [WARN] 스크롤 오류 (브라우저 재시작 필요): {type(e).__name__}: {e}")
