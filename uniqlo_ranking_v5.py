@@ -785,6 +785,7 @@ def extract_products(driver, max_products=30):
     log("      [DEBUG] 상품 로딩 대기 중...")
     product_tiles = []
     for wait_i in range(10):  # 최대 5초 대기
+        close_unexpected_windows(driver)
         close_cookie_popup(driver)
         product_tiles = _find_product_tiles(driver)
         if len(product_tiles) > 0:
@@ -1063,10 +1064,12 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         if tab_idx > 0:
             # 탭 클릭 전 쿠키 팝업 재확인 (다른 카테고리 전환 후 다시 나타날 수 있음)
             close_cookie_popup(driver)
+            close_unexpected_windows(driver)
             if not click_tab(driver, tab_name):
                 log(f"      -> 탭 클릭 실패, 건너뜀")
                 continue
             time.sleep(1)  # click_tab 내부에서 이미 상품 로딩 대기함
+            close_unexpected_windows(driver)
         
         # 상품 추출 (try-except로 개별 탭 오류 처리)
         try:
