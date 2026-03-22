@@ -139,6 +139,23 @@ pip install webdriver-manager
 
 ---
 
+## 📝 개인용 설문 대시보드 (Google Forms 스타일)
+
+이 리포지토리에는 개인적으로 사용할 수 있는 간단한 설문 대시보드가 포함되어 있습니다.
+
+### 실행
+```powershell
+cd "c:\AI실습\VS CODE\UQ"
+streamlit run personal_form_dashboard.py
+```
+
+### 설문(폼) 수정
+- [forms/sample_form.json](forms/sample_form.json)을 참고해 `forms/` 폴더에 JSON 파일을 추가/수정하면 됩니다.
+- 또는 앱 사이드바의 **"폼 편집"** 모드에서 구글폼처럼 문항을 만들고 저장할 수 있습니다.
+- 제출된 응답은 `form_responses/<form_id>.jsonl`에 누적 저장됩니다.
+
+---
+
 ## 📞 문의
 
 스크립트 오류나 개선 사항이 있다면:

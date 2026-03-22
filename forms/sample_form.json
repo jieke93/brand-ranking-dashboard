@@ -1,0 +1,56 @@
+{
+  "form_id": "sample",
+  "title": "개인 설문 (샘플)",
+  "description": "구글 설문폼처럼 질문을 입력하고 제출하면 로컬에 저장됩니다.",
+  "questions": [
+    {
+      "id": "name",
+      "type": "short_text",
+      "title": "이름",
+      "required": true
+    },
+    {
+      "id": "email",
+      "type": "short_text",
+      "title": "이메일",
+      "required": false
+    },
+    {
+      "id": "satisfaction",
+      "type": "linear_scale",
+      "title": "만족도",
+      "description": "1은 낮음, 5는 높음",
+      "required": true,
+      "min": 1,
+      "max": 5,
+      "min_label": "낮음",
+      "max_label": "높음"
+    },
+    {
+      "id": "channel",
+      "type": "multiple_choice",
+      "title": "어떤 경로로 알게 되었나요?",
+      "required": true,
+      "options": ["검색", "지인추천", "SNS", "기타"]
+    },
+    {
+      "id": "features",
+      "type": "checkboxes",
+      "title": "유용했던 기능(복수 선택)",
+      "required": false,
+      "options": ["대시보드", "엑셀 출력", "이미지", "비교 분석"]
+    },
+    {
+      "id": "visit_date",
+      "type": "date",
+      "title": "방문일",
+      "required": false
+    },
+    {
+      "id": "comments",
+      "type": "paragraph",
+      "title": "추가 의견",
+      "required": false
+    }
+  ]
+}

@@ -1,3 +1,17 @@
+def get_baseline_product_set(baseline_date='20240308'):
+    """3월 8일(혹은 baseline_date) 기준의 (브랜드, 상품명) 집합 반환"""
+    history = _load_all_history_raw()
+    product_set = set()
+    for full_key, dates_data in history.items():
+        if not isinstance(dates_data, dict) or baseline_date not in dates_data:
+            continue
+        items = dates_data[baseline_date]
+        parts = full_key.split('_', 1)
+        brand = parts[0]
+        for name in items.keys():
+            product_set.add((brand, name))
+    return product_set
+
 #!/usr/bin/env python3
 """
 3사 브랜드 랭킹 대시보드 (Streamlit)
@@ -283,6 +297,10 @@ def extract_all_product_images():
     except (OSError, PermissionError):
         pass  # Cloud 환경에서 디렉토리 생성 실패 시 무시
 
+
+    # 3월 8일 기준 상품 집합
+    baseline_set = get_baseline_product_set('20240308')
+
     image_map = {}  # (brand, sheet, rank) → base64
     name_map = {}   # (brand, name) → base64  (archive용)
 
@@ -312,8 +330,9 @@ def extract_all_product_images():
         except Exception:
             return None
 
+
     def _load_from_dir(directory, upscale=False):
-        """디렉토리에서 이미지 파일 로드"""
+        """디렉토리에서 이미지 파일 로드 (3/8 기준 상품은 archive 우선)"""
         files = glob.glob(os.path.join(directory, '*.jpg'))
         loaded = 0
         for fpath in files:
@@ -323,6 +342,19 @@ def extract_all_product_images():
                 continue
             brand, sheet, rank_val, prod_name = parsed
             key = (brand, sheet, rank_val)
+            # 3/8 기준 상품이면 archive 우선 적용
+            if (brand, prod_name) in baseline_set:
+                # archive에 있으면 archive 이미지 사용
+                safe_name = safe_filename(f"{brand}_{prod_name[:30]}")
+                archive_path = os.path.join(IMG_ARCHIVE_DIR, f"{safe_name}.jpg")
+                if os.path.exists(archive_path):
+                    with open(archive_path, 'rb') as f:
+                        img_bytes = f.read()
+                    b64 = base64.b64encode(img_bytes).decode('utf-8')
+                    image_map[key] = b64
+                    loaded += 1
+                    continue  # archive 우선 사용, 아래 로직 skip
+
             if key in image_map:
                 continue  # HD가 이미 있으면 건너뜀
 
@@ -479,6 +511,9 @@ def load_spao_image_map():
     except (json.JSONDecodeError, Exception):
         return {}
 
+    # 3/8 기준 상품 집합
+    baseline_set = get_baseline_product_set('20240308')
+
     spao_images = {}
     for cat_key, dates_data in history.items():
         if not dates_data:
@@ -499,16 +534,17 @@ def load_spao_image_map():
             if key in spao_images:
                 continue
 
-            # 1순위: archive에서 확인
-            safe_name = safe_filename(f"스파오_{name[:30]}")
-            archive_path = os.path.join(IMG_ARCHIVE_DIR, f"{safe_name}.jpg")
-            if os.path.exists(archive_path):
-                try:
-                    with open(archive_path, 'rb') as f:
-                        spao_images[key] = base64.b64encode(f.read()).decode('utf-8')
-                    continue
-                except Exception:
-                    pass
+            # 3/8 기준 상품이면 archive 우선 적용
+            if ('스파오', name) in baseline_set:
+                safe_name = safe_filename(f"스파오_{name[:30]}")
+                archive_path = os.path.join(IMG_ARCHIVE_DIR, f"{safe_name}.jpg")
+                if os.path.exists(archive_path):
+                    try:
+                        with open(archive_path, 'rb') as f:
+                            spao_images[key] = base64.b64encode(f.read()).decode('utf-8')
+                        continue
+                    except Exception:
+                        pass
 
             # 2순위: image_url을 URL 마커와 함께 저장
             image_url = info.get('image_url', '')
@@ -526,6 +562,9 @@ def augment_image_map_from_archive(image_map, df):
     """
     if df is None or df.empty:
         return image_map
+
+    # 3/8 기준 상품 집합
+    baseline_set = get_baseline_product_set('20240308')
 
     # archive 파일 → {(brand, safe_name): base64} 로드
     archive_files = glob.glob(os.path.join(IMG_ARCHIVE_DIR, '*.jpg'))
@@ -559,7 +598,15 @@ def augment_image_map_from_archive(image_map, df):
         if key in augmented:
             continue  # 이미 HD 이미지 있음
 
-        # archive에서 상품명 매칭 시도
+        # 3/8 기준 상품이면 archive 우선 적용
+        if (brand, name) in baseline_set:
+            safe_key = safe_filename(f"{brand}_{name[:30]}")
+            if safe_key in archive_cache:
+                augmented[key] = archive_cache[safe_key]
+                filled += 1
+                continue
+
+        # archive에서 상품명 매칭 시도 (기존 로직)
         safe_key = safe_filename(f"{brand}_{name[:30]}")
         if safe_key in archive_cache:
             augmented[key] = archive_cache[safe_key]

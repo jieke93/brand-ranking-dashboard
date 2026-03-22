@@ -1,0 +1,65 @@
+{
+  "form_id": "google_form_example",
+  "title": "구글폼 예시 설문",
+  "description": "구글폼 링크의 주요 문항을 참고한 예시 폼입니다.",
+  "questions": [
+    {
+      "id": "name",
+      "type": "short_text",
+      "title": "이름",
+      "required": true
+    },
+    {
+      "id": "email",
+      "type": "short_text",
+      "title": "이메일",
+      "required": false
+    },
+    {
+      "id": "satisfaction",
+      "type": "linear_scale",
+      "title": "만족도",
+      "description": "1(매우 불만족) ~ 5(매우 만족)",
+      "required": true,
+      "min": 1,
+      "max": 5,
+      "min_label": "매우 불만족",
+      "max_label": "매우 만족"
+    },
+    {
+      "id": "source",
+      "type": "multiple_choice",
+      "title": "이 설문을 알게 된 경로",
+      "required": true,
+      "options": ["검색", "지인추천", "SNS", "기타"]
+    },
+    {
+      "id": "features",
+      "type": "checkboxes",
+      "title": "유용했던 기능(복수 선택)",
+      "required": false,
+      "options": ["대시보드", "엑셀 출력", "이미지", "비교 분석"]
+    },
+    {
+      "id": "visit_date",
+      "type": "date",
+      "title": "방문일",
+      "required": false
+    },
+    {
+      "id": "file_upload",
+      "type": "file_upload",
+      "title": "첨부파일",
+      "description": "이미지 또는 PDF 업로드",
+      "required": false,
+      "file_types": ["jpg", "png", "pdf"],
+      "max_file_size_mb": 10
+    },
+    {
+      "id": "comments",
+      "type": "paragraph",
+      "title": "추가 의견",
+      "required": false
+    }
+  ]
+}
