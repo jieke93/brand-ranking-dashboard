@@ -5,6 +5,8 @@
 - 이미지 캡처 최적화
 """
 import io
+import os
+import re
 import urllib.parse
 import urllib.request
 import urllib.robotparser
