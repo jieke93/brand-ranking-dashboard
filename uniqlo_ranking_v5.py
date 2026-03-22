@@ -7,6 +7,7 @@
 """
 import sys
 import io
+import signal
 import socket
 import urllib.parse
 import urllib.request
@@ -14,6 +15,9 @@ import urllib.robotparser
 import requests
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from PIL import Image as PILImage
+
+# KeyboardInterrupt 방지 (Python 3.14 호환성)
+signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 # 전역 소켓 타임아웃 설정 (Selenium 통신에 영향주지 않도록 충분히 길게)
 socket.setdefaulttimeout(120)
@@ -502,7 +506,7 @@ def setup_driver():
     options.add_argument('--disable-dev-shm-usage')  # 메모리 문제 방지
     options.add_argument('--disable-extensions')  # 확장프로그램 비활성화
     options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36')
-    options.page_load_strategy = 'eager'  # DOM 로드 완료 시 바로 진행 (멈춤 방지)
+    options.page_load_strategy = 'normal'  # 페이지 완전 로드 후 진행
     
     log("  -> ChromeDriver 준비...")
     service = Service(ChromeDriverManager().install())
