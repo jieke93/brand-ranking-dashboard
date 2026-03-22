@@ -793,6 +793,7 @@ def extract_products(driver, max_products=30):
     
     # 스크롤하여 상품 로드 (lazy-load 이미지 트리거)
     try:
+        close_unexpected_windows(driver)
         log("      [DEBUG] 스크롤 시작 (이미지 로딩 대기)")
         # JavaScript 내부에서 스크롤 + 대기를 처리 (Python sleep 회피)
         driver.execute_script("""
@@ -815,6 +816,7 @@ def extract_products(driver, max_products=30):
         WebDriverWait(driver, 10).until(lambda d: True)
         import threading
         threading.Event().wait(timeout=5.0)
+        close_unexpected_windows(driver)
         log("      [DEBUG] 스크롤 완료")
     except BaseException as e:
         log(f"      [WARN] 스크롤 오류 (브라우저 재시작 필요): {type(e).__name__}: {e}")
@@ -1027,6 +1029,8 @@ def scrape_category_with_tabs(driver, category, url, tabs):
         if close_cookie_popup(driver):
             log("  -> 쿠키 팝업 닫음")
             time.sleep(0.5)
+        # 예상치 못한 새 창(ftc.go.kr 등) 닫기
+        close_unexpected_windows(driver)
     except BrowserCrashedError:
         raise
     except Exception as e:
