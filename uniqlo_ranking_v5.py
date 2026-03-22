@@ -69,7 +69,28 @@ def safe_get(driver, url):
         return False
     time.sleep(REQUEST_DELAY)
     driver.get(url)
+    close_unexpected_windows(driver)
     return True
+
+
+def close_unexpected_windows(driver):
+    """예상치 못한 새 탭/창(예: ftc.go.kr CAPTCHA)이 열리면 닫고 원래 탭으로 복귀"""
+    try:
+        handles = driver.window_handles
+        if len(handles) <= 1:
+            return
+        main_handle = handles[0]
+        for handle in handles[1:]:
+            try:
+                driver.switch_to.window(handle)
+                cur_url = driver.current_url or ''
+                log(f"  -> 예상치 못한 창 감지, 닫는 중: {cur_url[:60]}")
+                driver.close()
+            except Exception:
+                pass
+        driver.switch_to.window(main_handle)
+    except Exception:
+        pass
 
 
 def _norm_text(s):
@@ -505,6 +526,8 @@ def setup_driver():
     options.add_argument('--window-size=1920,1080')
     options.add_argument('--disable-dev-shm-usage')  # 메모리 문제 방지
     options.add_argument('--disable-extensions')  # 확장프로그램 비활성화
+    options.add_argument('--disable-popup-blocking')  # 팝업 차단 비활성화 (직접 제어)
+    options.add_argument('--disable-notifications')  # 알림 차단
     options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36')
     options.page_load_strategy = 'normal'  # 페이지 완전 로드 후 진행
     
