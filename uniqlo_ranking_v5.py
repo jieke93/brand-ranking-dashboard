@@ -577,6 +577,14 @@ def setup_driver():
     # implicitly_wait은 0으로 설정 (find_element가 블로킹되지 않도록)
     driver.implicitly_wait(0)
     
+    # ftc.go.kr 팝업 방지: window.open 차단 (CDP)
+    try:
+        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': 'window.open = function() { return null; };'
+        })
+    except Exception:
+        pass
+    
     log("  [OK] 완료!\n")
     return driver
 
