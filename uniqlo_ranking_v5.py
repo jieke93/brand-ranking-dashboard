@@ -493,11 +493,13 @@ def setup_driver():
     log("=" * 60)
     
     options = Options()
+    options.add_argument('--headless=new')
     options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     options.add_argument('--window-size=1920,1080')
     options.add_argument('--disable-dev-shm-usage')  # 메모리 문제 방지
     options.add_argument('--disable-extensions')  # 확장프로그램 비활성화
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36')
     options.page_load_strategy = 'eager'  # DOM 로드 완료 시 바로 진행 (멈춤 방지)
     
     log("  -> ChromeDriver 준비...")
