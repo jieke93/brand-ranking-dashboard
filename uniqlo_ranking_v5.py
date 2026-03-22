@@ -1284,6 +1284,202 @@ def create_excel(all_data, filename):
     
     return filename
 
+
+def _normalize_product_name(name):
+    """이미지 매칭용 상품명 정규화 (특수문자·공백·괄호 내용 제거)"""
+    s = re.sub(r'\(.*?\)', '', name)           # 괄호 안 내용 제거
+    s = re.sub(r'[^\w]', '', s)                # 특수문자·공백 제거
+    return s.lower().strip()
+
+
+def _build_existing_image_index(hd_dir):
+    """product_images_hd/ 폴더에서 유니클로 이미지를 상품명 → 파일경로 딕셔너리로 구축"""
+    index = {}  # { 정규화된_상품명: 파일경로 }
+    if not os.path.isdir(hd_dir):
+        return index
+    for fname in os.listdir(hd_dir):
+        if not fname.endswith('.jpg') or '유니클로' not in fname:
+            continue
+        # 파일명: {hash}_유니클로_{category}_{tab}_{rank}_{상품명}.jpg
+        parts = fname.rsplit('.', 1)[0].split('_', 5)
+        if len(parts) >= 6:
+            product_name_part = parts[5]
+            norm = _normalize_product_name(product_name_part)
+            if norm and norm not in index:
+                index[norm] = os.path.join(hd_dir, fname)
+    return index
+
+
+def _load_image_for_excel(file_path):
+    """HD 이미지 파일 → (엑셀용 BytesIO, HD용 BytesIO) 튜플"""
+    try:
+        img = PILImage.open(file_path)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        
+        img_small = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_small = io.BytesIO()
+        img_small.save(buf_small, format='JPEG', quality=85)
+        buf_small.seek(0)
+
+        img_hd = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_hd = io.BytesIO()
+        img_hd.save(buf_hd, format='JPEG', quality=90)
+        buf_hd.seek(0)
+
+        return (buf_small, buf_hd)
+    except Exception:
+        return None
+
+
+def _reuse_existing_images(all_data, hd_dir):
+    """Phase 2: 기존 HD 이미지에서 동일 상품명 이미지를 재활용"""
+    log("\n  [Phase 2] 기존 이미지 매칭 중...")
+    image_index = _build_existing_image_index(hd_dir)
+    log(f"  -> 기존 이미지 인덱스: {len(image_index)}개 상품")
+    
+    matched = 0
+    missing_products = []  # (sheet_name, product_index, product) 튜플 리스트
+    
+    for sheet_name, products in all_data.items():
+        for i, p in enumerate(products):
+            if p.get('image_data'):
+                continue  # 이미 이미지가 있음
+            norm_name = _normalize_product_name(p.get('name', ''))
+            if norm_name in image_index:
+                result = _load_image_for_excel(image_index[norm_name])
+                if result:
+                    p['image_data'] = result[0]
+                    p['hd_image_data'] = result[1]
+                    matched += 1
+                else:
+                    missing_products.append((sheet_name, i, p))
+            else:
+                missing_products.append((sheet_name, i, p))
+    
+    total = sum(len(prods) for prods in all_data.values())
+    log(f"  -> 기존 이미지 매칭: {matched}/{total}개 재활용")
+    log(f"  -> 이미지 누락: {len(missing_products)}개 (스크린샷 필요)")
+    
+    return missing_products
+
+
+def _screenshot_missing_images(driver, all_data, missing_products):
+    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷"""
+    if not missing_products:
+        log("\n  [Phase 3] 누락 이미지 없음 - 스크린샷 건너뜀")
+        return
+    
+    log(f"\n  [Phase 3] 누락 이미지 {len(missing_products)}개 스크린샷 시작")
+    
+    # 시트별로 그룹핑 (같은 페이지의 상품을 한 번에 처리)
+    from collections import defaultdict
+    by_sheet = defaultdict(list)
+    for sheet_name, prod_idx, prod in missing_products:
+        by_sheet[sheet_name].append((prod_idx, prod))
+    
+    captured_total = 0
+    
+    for sheet_name, items in by_sheet.items():
+        # sheet_name = "WOMEN_모두보기" → category="WOMEN", tab="모두보기"
+        parts = sheet_name.split('_', 1)
+        if len(parts) != 2:
+            continue
+        category, tab_name = parts
+        if category not in CATEGORIES:
+            continue
+        
+        info = CATEGORIES[category]
+        url = info['url']
+        
+        log(f"\n    [{sheet_name}] {len(items)}개 누락 → 페이지 방문")
+        
+        try:
+            if not safe_get(driver, url):
+                continue
+            # 페이지 로딩 대기
+            for _ in range(5):
+                time.sleep(0.8)
+            
+            if close_cookie_popup(driver):
+                time.sleep(0.5)
+            close_unexpected_windows(driver)
+            
+            # 탭 클릭 (모두보기가 아닌 경우)
+            if tab_name != '모두보기':
+                if not click_tab(driver, tab_name):
+                    log(f"      -> 탭 클릭 실패, 건너뜀")
+                    continue
+                time.sleep(1)
+                close_unexpected_windows(driver)
+            
+            # 스크롤하여 이미지 로드
+            try:
+                close_unexpected_windows(driver)
+                driver.execute_script("""
+                    (function() {
+                        var steps = 3, i = 0;
+                        function doScroll() {
+                            if (i < steps) {
+                                window.scrollTo(0, document.body.scrollHeight);
+                                i++;
+                                setTimeout(doScroll, 1000);
+                            } else { window.scrollTo(0, 0); }
+                        }
+                        doScroll();
+                    })();
+                """)
+                threading.Event().wait(timeout=5.0)
+                close_unexpected_windows(driver)
+            except BaseException:
+                pass
+            
+            # 상품 타일 찾기
+            product_tiles = _find_product_tiles(driver)
+            if not product_tiles:
+                log(f"      -> 상품 타일 없음, 건너뜀")
+                continue
+            
+            captured = 0
+            for prod_idx, prod in items:
+                rank = prod.get('rank', 0)
+                if rank < 1 or rank > len(product_tiles):
+                    continue
+                
+                tile = product_tiles[rank - 1]
+                close_unexpected_windows(driver)
+                
+                # 이미지 요소 찾기
+                img_elem = None
+                try:
+                    img_elem = tile.find_element(By.CSS_SELECTOR, ".swiper-slide-active img.image__img")
+                except:
+                    try:
+                        img_elem = tile.find_element(By.CSS_SELECTOR, "img.image__img")
+                    except:
+                        pass
+                
+                if img_elem:
+                    img_data = capture_image_from_element(img_elem, driver)
+                    if img_data:
+                        prod['image_data'] = img_data[0]
+                        prod['hd_image_data'] = img_data[1]
+                        # all_data에도 반영 (같은 객체 참조이므로 자동)
+                        captured += 1
+            
+            captured_total += captured
+            log(f"      -> {captured}/{len(items)}개 스크린샷 완료")
+            
+        except BrowserCrashedError:
+            raise
+        except Exception as e:
+            if _is_driver_dead_error(e):
+                raise BrowserCrashedError(str(e))
+            log(f"      -> 스크린샷 오류: {str(e)[:50]}")
+    
+    log(f"\n  [Phase 3 완료] 총 {captured_total}/{len(missing_products)}개 스크린샷 성공")
+
+
 def _save_hd_images(all_data, brand_name, excel_filename):
     """대시보드용 고해상도 이미지를 product_images_hd/ 폴더에 저장"""
     import hashlib
