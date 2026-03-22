@@ -563,6 +563,7 @@ def setup_driver():
     options.add_argument('--disable-extensions')  # 확장프로그램 비활성화
     options.add_argument('--disable-popup-blocking')  # 팝업 차단 비활성화 (직접 제어)
     options.add_argument('--disable-notifications')  # 알림 차단
+    options.add_argument('--host-rules=MAP www.ftc.go.kr 127.0.0.1, MAP ftc.go.kr 127.0.0.1')  # ftc.go.kr 팝업 DNS 차단
     options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36')
     options.page_load_strategy = 'normal'  # 페이지 완전 로드 후 진행
     
