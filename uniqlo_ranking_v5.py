@@ -881,8 +881,8 @@ def extract_products(driver, max_products=30, skip_images=False):
     
     log(f"      [DEBUG] {min(max_products, len(product_tiles))}개 상품 처리 시작")
     for idx, tile in enumerate(product_tiles[:max_products], 1):
-        # 매 5개 상품마다 예상치 못한 창(ftc.go.kr 등) 닫기
-        if idx % 5 == 1:
+        # 이미지 모드일 때만 매 5개마다 예상치 못한 창 닫기 (속도 최적화)
+        if not skip_images and idx % 5 == 1:
             close_unexpected_windows(driver)
         try:
             product = {
