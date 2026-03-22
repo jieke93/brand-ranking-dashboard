@@ -87,6 +87,33 @@ def capture_image(element):
     except:
         return None
 
+def _save_hd_images(all_data, brand_name, excel_filename):
+    """대시보드용 고해상도 이미지를 product_images_hd/ 폴더에 저장"""
+    import hashlib
+    hd_dir = os.path.join(os.path.dirname(os.path.abspath(excel_filename)), 'product_images_hd')
+    os.makedirs(hd_dir, exist_ok=True)
+    
+    file_hash = hashlib.md5(f"{os.path.basename(excel_filename)}_{os.path.getmtime(excel_filename)}".encode()).hexdigest()[:8]
+    saved = 0
+    for sheet_name, products in all_data.items():
+        for p in products:
+            hd_data = p.get('hd_image_data')
+            if hd_data:
+                name = p.get('name', '')[:20]
+                safe = re.sub(r'[^\w\s-]', '', name).strip().replace(' ', '_')
+                fname = f"{file_hash}_{brand_name}_{sheet_name}_{p['rank']}_{safe}.jpg"
+                fpath = os.path.join(hd_dir, fname)
+                if not os.path.exists(fpath):
+                    try:
+                        hd_data.seek(0)
+                        with open(fpath, 'wb') as f:
+                            f.write(hd_data.read())
+                        saved += 1
+                    except:
+                        pass
+    if saved > 0:
+        log(f"  [HD] 고해상도 이미지 {saved}개 저장 → {hd_dir}")
+
 def main():
     log("\n" + "=" * 60)
     log("  ARKET 인기상품 크롤러 V5 (판매순)")
@@ -330,30 +357,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-def _save_hd_images(all_data, brand_name, excel_filename):
-    """대시보드용 고해상도 이미지를 product_images_hd/ 폴더에 저장"""
-    import hashlib
-    hd_dir = os.path.join(os.path.dirname(os.path.abspath(excel_filename)), 'product_images_hd')
-    os.makedirs(hd_dir, exist_ok=True)
-    
-    file_hash = hashlib.md5(f"{os.path.basename(excel_filename)}_{os.path.getmtime(excel_filename)}".encode()).hexdigest()[:8]
-    saved = 0
-    for sheet_name, products in all_data.items():
-        for p in products:
-            hd_data = p.get('hd_image_data')
-            if hd_data:
-                name = p.get('name', '')[:20]
-                safe = re.sub(r'[^\w\s-]', '', name).strip().replace(' ', '_')
-                fname = f"{file_hash}_{brand_name}_{sheet_name}_{p['rank']}_{safe}.jpg"
-                fpath = os.path.join(hd_dir, fname)
-                if not os.path.exists(fpath):
-                    try:
-                        hd_data.seek(0)
-                        with open(fpath, 'wb') as f:
-                            f.write(hd_data.read())
-                        saved += 1
-                    except:
-                        pass
-    if saved > 0:
-        log(f"  [HD] 고해상도 이미지 {saved}개 저장 → {hd_dir}")

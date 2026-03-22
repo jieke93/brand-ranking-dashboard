@@ -1846,7 +1846,7 @@ def main():
                 
                 phase3_start = _time.time()
                 try:
-                    _screenshot_missing_images(driver, all_data, missing_products)
+                    driver = _screenshot_missing_images(driver, all_data, missing_products)
                 except BrowserCrashedError as e:
                     log(f"  [WARN] Phase 3 브라우저 오류: {str(e)[:80]}")
                     log("  -> Chrome 재시작 후 재시도...")
@@ -1856,7 +1856,7 @@ def main():
                         # 재시도 시 아직 이미지 없는 것만 필터
                         still_missing = [(s, i, p) for s, i, p in missing_products if not p.get('image_data')]
                         if still_missing:
-                            _screenshot_missing_images(driver, all_data, still_missing)
+                            driver = _screenshot_missing_images(driver, all_data, still_missing)
                     except Exception as e2:
                         log(f"  [WARN] Phase 3 재시도 실패: {str(e2)[:50]}")
                 
