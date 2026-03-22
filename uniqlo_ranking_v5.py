@@ -1534,7 +1534,7 @@ def _reuse_existing_images(all_data, hd_dir):
 
 
 def _screenshot_missing_images(driver, all_data, missing_products):
-    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷"""
+    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷 (timeout 보호)"""
     if not missing_products:
         log("\n  [Phase 3] 누락 이미지 없음 - 스크린샷 건너뜀")
         return
@@ -1570,9 +1570,13 @@ def _screenshot_missing_images(driver, all_data, missing_products):
             for _ in range(5):
                 time.sleep(0.8)
             
-            if close_cookie_popup(driver):
-                time.sleep(0.5)
+            close_cookie_popup(driver)
             close_unexpected_windows(driver)
+            
+            # 드라이버 응답 확인 (팝업 처리 후 세션이 살아있는지)
+            alive = _run_with_timeout(lambda: driver.execute_script("return true;"), timeout_sec=10)
+            if alive is None:
+                raise BrowserCrashedError("Phase 3 드라이버 응답 없음")
             
             # 탭 클릭 (모두보기가 아닌 경우)
             if tab_name != '모두보기':
@@ -1582,29 +1586,30 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 time.sleep(1)
                 close_unexpected_windows(driver)
             
-            # 스크롤하여 이미지 로드
-            try:
-                close_unexpected_windows(driver)
-                driver.execute_script("""
-                    (function() {
-                        var steps = 3, i = 0;
-                        function doScroll() {
-                            if (i < steps) {
-                                window.scrollTo(0, document.body.scrollHeight);
-                                i++;
-                                setTimeout(doScroll, 1000);
-                            } else { window.scrollTo(0, 0); }
-                        }
-                        doScroll();
-                    })();
-                """)
-                threading.Event().wait(timeout=5.0)
-                close_unexpected_windows(driver)
-            except BaseException:
-                pass
+            # 스크롤하여 이미지 로드 (timeout 보호)
+            scroll_r = _run_with_timeout(lambda: driver.execute_script("""
+                (function() {
+                    var steps = 3, i = 0;
+                    function doScroll() {
+                        if (i < steps) {
+                            window.scrollTo(0, document.body.scrollHeight);
+                            i++;
+                            setTimeout(doScroll, 1000);
+                        } else { window.scrollTo(0, 0); }
+                    }
+                    doScroll();
+                })(); return true;
+            """), timeout_sec=15)
+            if scroll_r is None:
+                raise BrowserCrashedError("Phase 3 스크롤 타임아웃")
             
-            # 상품 타일 찾기
-            product_tiles = _find_product_tiles(driver)
+            threading.Event().wait(timeout=5.0)
+            close_unexpected_windows(driver)
+            
+            # 상품 타일 찾기 (timeout 보호)
+            product_tiles = _run_with_timeout(lambda: _find_product_tiles(driver), timeout_sec=10)
+            if product_tiles is None:
+                raise BrowserCrashedError("Phase 3 타일 검색 타임아웃")
             if not product_tiles:
                 log(f"      -> 상품 타일 없음, 건너뜀")
                 continue
@@ -1616,17 +1621,18 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                     continue
                 
                 tile = product_tiles[rank - 1]
-                close_unexpected_windows(driver)
                 
-                # 이미지 요소 찾기
-                img_elem = None
-                try:
-                    img_elem = tile.find_element(By.CSS_SELECTOR, ".swiper-slide-active img.image__img")
-                except:
+                # 이미지 요소 찾기 (timeout 보호)
+                def _find_img(t=tile):
                     try:
-                        img_elem = tile.find_element(By.CSS_SELECTOR, "img.image__img")
-                    except:
-                        pass
+                        return t.find_element(By.CSS_SELECTOR, ".swiper-slide-active img.image__img")
+                    except Exception:
+                        try:
+                            return t.find_element(By.CSS_SELECTOR, "img.image__img")
+                        except Exception:
+                            return None
+                
+                img_elem = _run_with_timeout(_find_img, timeout_sec=10)
                 
                 if img_elem:
                     img_data = capture_image_from_element(img_elem, driver)
