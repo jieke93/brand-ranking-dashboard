@@ -212,6 +212,9 @@ def _is_driver_dead_error(exc) -> bool:
         'session deleted',
         'invalid session id',
         'disconnected',
+        'connectionreset',
+        'connection reset',
+        '10054',
     ]
     return any(m in msg for m in fatal_markers)
 
