@@ -773,8 +773,9 @@ def extract_products(driver, max_products=30):
         driver.execute_script("window.scrollTo(0, 0);")
         time.sleep(1.0)
         log("      [DEBUG] 스크롤 완료")
-    except Exception as e:
-        log(f"      [WARN] 스크롤 오류: {e}")
+    except BaseException as e:
+        log(f"      [WARN] 스크롤 오류 (브라우저 재시작 필요): {type(e).__name__}: {e}")
+        raise BrowserCrashedError(str(e))
     
     # 상품 타일 다시 찾기 (스크롤 후 추가 로드될 수 있음)
     log("      [DEBUG] 상품 타일 검색 시작")
