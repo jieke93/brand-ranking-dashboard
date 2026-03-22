@@ -831,28 +831,32 @@ def extract_products(driver, max_products=30, skip_images=False):
     # 스크롤하여 상품 로드 (lazy-load 이미지 트리거)
     try:
         close_unexpected_windows(driver)
-        log("      [DEBUG] 스크롤 시작 (이미지 로딩 대기)")
-        # JavaScript 내부에서 스크롤 + 대기를 처리 (Python sleep 회피)
-        driver.execute_script("""
-            (function() {
-                var steps = 3;
-                var i = 0;
-                function doScroll() {
-                    if (i < steps) {
-                        window.scrollTo(0, document.body.scrollHeight);
-                        i++;
-                        setTimeout(doScroll, 1000);
-                    } else {
-                        window.scrollTo(0, 0);
+        if skip_images:
+            log("      [DEBUG] 빠른 스크롤 (이미지 건너뜀)")
+            # 이미지 불필요 → 빠르게 스크롤만 하고 대기 최소화
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            threading.Event().wait(timeout=1.5)
+            driver.execute_script("window.scrollTo(0, 0);")
+        else:
+            log("      [DEBUG] 스크롤 시작 (이미지 로딩 대기)")
+            driver.execute_script("""
+                (function() {
+                    var steps = 3;
+                    var i = 0;
+                    function doScroll() {
+                        if (i < steps) {
+                            window.scrollTo(0, document.body.scrollHeight);
+                            i++;
+                            setTimeout(doScroll, 1000);
+                        } else {
+                            window.scrollTo(0, 0);
+                        }
                     }
-                }
-                doScroll();
-            })();
-        """)
-        # WebDriverWait으로 대기 (time.sleep 대신)
-        WebDriverWait(driver, 10).until(lambda d: True)
-        import threading
-        threading.Event().wait(timeout=5.0)
+                    doScroll();
+                })();
+            """)
+            WebDriverWait(driver, 10).until(lambda d: True)
+            threading.Event().wait(timeout=5.0)
         close_unexpected_windows(driver)
         log("      [DEBUG] 스크롤 완료")
     except BaseException as e:
@@ -1123,7 +1127,10 @@ def scrape_category_with_tabs(driver, category, url, tabs, skip_images=False):
                 
                 # 이미지 다운로드 성공 개수 계산
                 img_count = sum(1 for p in products if p.get('image_data'))
-                log(f"      -> {len(products)}개 수집 (이미지: {img_count}개)")
+                if skip_images:
+                    log(f"      -> {len(products)}개 수집 (이미지: Phase 2/3에서 처리)")
+                else:
+                    log(f"      -> {len(products)}개 수집 (이미지: {img_count}개)")
                 
                 # 샘플 출력 (첫 2개만)
                 if len(products) >= 2:
