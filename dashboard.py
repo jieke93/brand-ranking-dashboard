@@ -2728,6 +2728,295 @@ def _check_login():
     return False
 
 
+# ═══════════════════════════════════════════════════
+# 품평회 분석 페이지
+# ═══════════════════════════════════════════════════
+
+def page_survey_analysis():
+    """품평회 설문 분석 페이지 – 엑셀 업로드 → 분석 엑셀 + PPT 자동 생성"""
+    st.header("📋 품평회 설문 분석")
+    st.caption("품평회 설문 RAW 엑셀 파일을 업로드하면 자동으로 분석 엑셀 + PPT를 생성합니다.")
+
+    uploaded = st.file_uploader(
+        "설문 RAW 엑셀 파일 업로드 (.xlsx)",
+        type=["xlsx"],
+        help="Google Forms 등에서 다운받은 원본 응답 엑셀 파일",
+    )
+
+    if uploaded is None:
+        st.info("💡 파일을 업로드해주세요. 아이템별 선호도/적정가격/컬러선호 등을 자동 분석합니다.")
+
+        # ── RAW 파일 요건 가이드 ──
+        with st.expander("📖 RAW 파일 요건 (클릭하여 펼치기)", expanded=False):
+            st.markdown("""
+### 파일 형식
+- **`.xlsx` (엑셀)** 파일만 지원 (`.xls`, `.csv` 불가)
+- Google Forms → **"응답" 시트 → 스프레드시트에서 응답 보기 → 파일 → 다운로드 → .xlsx** 로 받은 파일
+- 첫 번째 시트(활성 시트)만 읽습니다
+
+---
+
+### 필수 열 구조 (1행 = 헤더)
+
+| 구분 | 열 위치 | 헤더 예시 | 비고 |
+|------|---------|----------|------|
+| **성별** | A~F열 사이 | `성별을 선택해주세요` | 헤더에 **"성별"** 텍스트가 반드시 포함 |
+| **연령** | A~F열 사이 | `연령을 선택해주세요` | 헤더에 **"연령"** 또는 **"나이"** 텍스트가 반드시 포함 |
+
+- 성별 값: `남성`, `여성` (또는 `남자`, `여자` → 자동 변환됨)
+- 연령 값: `20~24세`, `25~29세`, `45~49세` 등 (연령대 텍스트 그대로)
+- 성별·연령 열은 **A~F열(1~6번째 열)** 안에 있어야 합니다
+- 타임스탬프, 성함, 연락처, 소속 등 기본 열은 자유 배치 가능
+
+---
+
+### 아이템 질문 구조 (G열 = 7번째 열부터)
+
+**핵심 규칙: 각 아이템의 첫 질문 헤더는 반드시 `1.` 로 시작해야 합니다.**
+
+```
+1. [아이템명] 해당 상품의 선호도를 10점 만점으로 평가해주세요.  ← 아이템 시작
+2. 해당 상품의 구매 의향 가격을 적어주세요. (숫자만 기입)
+3. 해당 상품의 선호하는 "컬러"를 골라 주세요.
+해당 스타일에 대한 만족/불만족 요소를 알려주세요.
+1. [다음 아이템명] 해당 상품의 선호도를 10점 만점으로 ...     ← 새 아이템 시작
+```
+
+- `1. ` (숫자1 + 마침표 + 공백) 또는 `1.[` (숫자1 + 마침표 + 대괄호)로 시작하면 **새 아이템**으로 인식
+- G열 이전(A~F)에 있는 질문/열은 무시됩니다
+- Google Sheets의 빈 열(`열1`, `열2` 등)은 자동으로 무시됩니다
+
+---
+
+### 자동 인식되는 질문 유형
+
+| 질문 유형 | 헤더에 포함해야 할 키워드 | 데이터 형식 | 분석 내용 |
+|----------|------------------------|-----------|----------|
+| **선호도** | `선호도` + (`10점` 또는 `만점`) | 숫자 (0~10) | 전체/성별/연령별 평균, 랭킹 |
+| **적정가격** | `가격` 또는 `적정` | 숫자 (원 단위) | 전체/성별/연령별 평균 |
+| **컬러선호** | `컬러` + (`골라` 또는 `구매의향`) | 텍스트 (컬러명) | TOP 10 컬러, 비율 |
+| **컬러선호도** | `컬러 선호도` | 숫자 | 평균 분석 |
+| **선호유형** | `선호하는` + (`유형` 또는 `디자인`) | 텍스트 | 선택 분포 |
+| **구매희망** | `구매하고 싶은` 또는 `구매하고싶은` | 텍스트 | 선택 분포 |
+| **주관식** | `만족/불만족`, `자유롭게`, `제안` | 텍스트 | 특수질문 요약 |
+| **기타수치** | `2.`, `3.` 등 숫자로 시작 | 숫자 | 평균/분포 |
+
+- 선호도 질문이 **없는** 아이템은 랭킹 요약에서 제외됩니다
+- 적정가격의 `원`, `,`, `만` 등은 자동 변환됩니다 (예: `39,000원` → 39000)
+- **0점 = 비구매 의사**로 간주 → 0포함/0제외 두 가지 랭킹 생성
+
+---
+
+### 예시 헤더 배치
+
+| A | B | C | D | E | F | G | H | I | J | K | L | M | ... |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|-----|
+| 타임스탬프 | 성함 | 연락처 | **성별** | **연령** | 소속 | **1. [아이템1] 선호도...** | 2. 적정가격... | 3. 컬러... | 주관식... | **1. [아이템2] 선호도...** | 2. 적정가격... | 3. 컬러... | ... |
+
+---
+
+### 주의사항
+- 헤더(1행)가 **비어있는 열**은 건너뜁니다
+- 데이터 행에서 1~6열이 모두 빈 행은 자동 스킵됩니다
+- 아이템 번호는 `1.`로 시작하는 헤더 순서대로 자동 부여됩니다 (1, 2, 3...)
+- 하나의 아이템 안에 질문이 여러 개 있어도 됩니다 (다음 `1.`이 나올 때까지 같은 아이템)
+""")
+
+        # 기존 결과 표시
+        _show_existing_survey_results()
+        return
+
+    # 파일 저장
+    import tempfile, shutil
+    tmp_dir = tempfile.mkdtemp()
+    input_path = os.path.join(tmp_dir, uploaded.name)
+    with open(input_path, "wb") as f:
+        f.write(uploaded.getvalue())
+
+    base_name = os.path.splitext(uploaded.name)[0]
+    output_excel = os.path.join(tmp_dir, f"{base_name}_분석결과_v7.xlsx")
+    output_ppt = os.path.join(tmp_dir, f"{base_name}_분석결과_v7.pptx")
+
+    try:
+        import sys
+        # survey_analyzer 모듈 캐시 완전 제거 후 재임포트
+        if 'survey_analyzer' in sys.modules:
+            del sys.modules['survey_analyzer']
+        import survey_analyzer as sa
+
+        with st.spinner("📊 데이터 로딩 중..."):
+            headers, data = sa.load_raw_data(input_path)
+
+        gender_col, age_col = sa.find_gender_age_columns(headers)
+        items = sa.identify_items(headers)
+
+        if not items:
+            st.error("아이템을 식별할 수 없습니다. 헤더 형식을 확인해주세요.")
+            return
+
+        genders_set = set()
+        ages_set = set()
+        for row in data:
+            g = sa.clean_gender(row[gender_col]) if gender_col is not None and row[gender_col] else "미응답"
+            a = str(row[age_col]).strip() if age_col is not None and row[age_col] else "미응답"
+            genders_set.add(g)
+            ages_set.add(a)
+        genders = sorted(genders_set)
+        ages = sa.sort_age_groups(ages_set)
+
+        # 요약 정보
+        col1, col2, col3 = st.columns(3)
+        col1.metric("응답자 수", f"{len(data)}명")
+        col2.metric("아이템 수", f"{len(items)}개")
+        col3.metric("성별/연령", f"{len(genders)}성별 × {len(ages)}연령")
+
+        st.divider()
+
+        # 아이템 목록
+        with st.expander("🔍 아이템 식별 결과", expanded=True):
+            for item in items:
+                q_types = list(set(q["type"] for q in item["questions"]))
+                st.write(f"**아이템 {item['item_no']}**: {len(item['questions'])}개 질문 ({', '.join(q_types)})")
+
+        # 분석 실행
+        with st.spinner("📗 분석 엑셀 생성 중..."):
+            sa.create_summary_excel(headers, data, items, gender_col, age_col, output_excel)
+
+        with st.spinner("📙 PPT 생성 중..."):
+            sa.create_ppt(items, data, gender_col, age_col, genders, ages, output_ppt)
+
+        st.success(f"✅ 분석 완료! (응답자 {len(data)}명, 아이템 {len(items)}개)")
+
+        # 다운로드 버튼
+        st.divider()
+        dcol1, dcol2 = st.columns(2)
+        with open(output_excel, "rb") as f:
+            dcol1.download_button(
+                label="📗 분석 엑셀 다운로드",
+                data=f.read(),
+                file_name=f"{base_name}_분석결과_v7.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        with open(output_ppt, "rb") as f:
+            dcol2.download_button(
+                label="📙 PPT 다운로드",
+                data=f.read(),
+                file_name=f"{base_name}_분석결과_v7.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                use_container_width=True,
+            )
+
+        # 워크스페이스에도 복사
+        try:
+            shutil.copy2(output_excel, os.path.join(WORK_DIR, f"{base_name}_분석결과_v7.xlsx"))
+            shutil.copy2(output_ppt, os.path.join(WORK_DIR, f"{base_name}_분석결과_v7.pptx"))
+        except Exception:
+            pass
+
+        # 선호도 랭킹 미리보기
+        _show_ranking_preview(items, data, gender_col, age_col, ages)
+
+    except Exception as e:
+        st.error(f"분석 중 오류가 발생했습니다: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+    finally:
+        try:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+def _show_existing_survey_results():
+    """워크스페이스에 있는 기존 분석 결과 파일 표시 + 삭제 기능"""
+    result_files = sorted(glob.glob(os.path.join(WORK_DIR, "*_분석결과_v7.xlsx")))
+    ppt_files = sorted(glob.glob(os.path.join(WORK_DIR, "*_분석결과_v7.pptx")))
+    if not result_files and not ppt_files:
+        return
+
+    # 삭제 처리
+    if 'survey_delete_target' in st.session_state and st.session_state['survey_delete_target']:
+        target = st.session_state.pop('survey_delete_target')
+        deleted = []
+        for ext in ['.xlsx', '.pptx']:
+            fp = os.path.join(WORK_DIR, target + ext)
+            if os.path.exists(fp):
+                os.remove(fp)
+                deleted.append(os.path.basename(fp))
+        if deleted:
+            st.toast(f"🗑️ 삭제됨: {', '.join(deleted)}")
+            st.rerun()
+
+    st.divider()
+    st.subheader("📁 기존 분석 결과")
+
+    # 파일을 base_name 기준으로 그룹핑
+    groups = {}
+    for fp in result_files + ppt_files:
+        fname = os.path.basename(fp)
+        # "XXX_분석결과_v7.xlsx" → base = "XXX_분석결과_v7"
+        base = os.path.splitext(fname)[0]
+        if base not in groups:
+            groups[base] = []
+        groups[base].append(fp)
+
+    for base, files in sorted(groups.items()):
+        cols = st.columns([5, 5, 2])
+        for fp in files:
+            fname = os.path.basename(fp)
+            ext = os.path.splitext(fname)[1]
+            with open(fp, "rb") as f:
+                file_data = f.read()
+            if ext == '.xlsx':
+                cols[0].download_button(
+                    label=f"📗 {fname}",
+                    data=file_data,
+                    file_name=fname,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"dl_{fname}",
+                )
+            elif ext == '.pptx':
+                cols[1].download_button(
+                    label=f"📙 {fname}",
+                    data=file_data,
+                    file_name=fname,
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    key=f"dl_{fname}",
+                )
+        if cols[2].button("🗑️ 삭제", key=f"del_{base}"):
+            st.session_state['survey_delete_target'] = base
+            st.rerun()
+
+
+def _show_ranking_preview(items, data, gender_col, age_col, ages):
+    """선호도 랭킹 미리보기 테이블"""
+    import sys
+    if 'survey_analyzer' in sys.modules:
+        del sys.modules['survey_analyzer']
+    import survey_analyzer as sa
+    ranking = []
+    for item in items:
+        pref_qs = [q for q in item["questions"] if q["type"] == "선호도"]
+        if not pref_qs:
+            continue
+        avg = sa.calculate_averages(data, pref_qs[0]["col_idx"], gender_col, age_col)
+        avg_ex = sa.calculate_averages(data, pref_qs[0]["col_idx"], gender_col, age_col, exclude_zero=True)
+        ranking.append({
+            "아이템": f"아이템 {item['item_no']}",
+            "전체(0포함)": avg["전체"],
+            "전체(0제외)": avg_ex["전체"],
+        })
+    if ranking:
+        st.divider()
+        st.subheader("🏆 선호도 랭킹 미리보기")
+        df_rank = pd.DataFrame(ranking)
+        df_rank = df_rank.sort_values("전체(0포함)", ascending=False).reset_index(drop=True)
+        df_rank.index = df_rank.index + 1
+        df_rank.index.name = "순위"
+        st.dataframe(df_rank, width='stretch')
+
+
 def main():
     try:
         st.set_page_config(
@@ -2768,7 +3057,7 @@ def main():
             "페이지",
             ["📊 종합 대시보드", "🏷️ 브랜드별 상세", "💰 가격 비교",
              "🏆 핵심 아이템", "📈 랭킹 변동 추적", "🔍 상품 검색",
-             "🆚 SPAO 비교 분석", "🤖 AI 분석"],
+             "🆚 SPAO 비교 분석", "🤖 AI 분석", "📋 품평회 분석"],
             label_visibility="collapsed"
         )
 
@@ -2791,6 +3080,15 @@ def main():
             "</div>",
             unsafe_allow_html=True,
         )
+
+    # 품평회 분석은 별도 데이터 → 먼저 분기
+    if "품평회" in page:
+        try:
+            page_survey_analysis()
+        except Exception as e:
+            st.error(f"페이지 렌더링 중 오류: {e}")
+            st.exception(e)
+        return
 
     # 데이터 로드
     try:
