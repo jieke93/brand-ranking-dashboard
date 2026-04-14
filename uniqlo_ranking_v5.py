@@ -509,7 +509,7 @@ def _download_image_worker(url):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     try:
-        response = requests.get(url, headers=headers, timeout=(0.8, 0.8))
+        response = requests.get(url, headers=headers, timeout=(10, 15))
         if response.status_code == 200:
             img = PILImage.open(io.BytesIO(response.content))
             if img.mode in ('RGBA', 'P'):
@@ -1524,7 +1524,7 @@ def _reuse_existing_images(all_data, hd_dir):
     
     total = sum(len(prods) for prods in all_data.values())
     log(f"  -> 기존 이미지 매칭: {matched}/{total}개 재활용")
-    log(f"  -> 이미지 누락: {len(missing_products)}개 (스크린샷 필요)")
+    log(f"  -> 이미지 누락: {len(missing_products)}개 (다운로드 필요)")
     
     return missing_products
 
@@ -1547,31 +1547,111 @@ def _save_hd_image_immediately(prod, sheet_name, hd_dir):
         pass
 
 
+def _upgrade_image_url(url):
+    """유니클로 CDN URL에서 고해상도 이미지 URL로 변환"""
+    if not url:
+        return url
+    # /w/100 → /w/600 등 해상도 파라미터 업그레이드
+    upgraded = re.sub(r'/w/\d+', '/w/600', url)
+    upgraded = re.sub(r'/h/\d+', '/h/600', upgraded)
+    # 쿼리 파라미터의 width/height도 업그레이드
+    upgraded = re.sub(r'width=\d+', 'width=600', upgraded)
+    upgraded = re.sub(r'height=\d+', 'height=600', upgraded)
+    return upgraded
+
+
+def _download_image_direct(url):
+    """이미지 URL에서 직접 다운로드하여 (엑셀용, HD용) 튜플 반환"""
+    if not url or not url.startswith('http'):
+        return None
+    try:
+        # 고해상도 URL로 업그레이드
+        hd_url = _upgrade_image_url(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+            'Referer': 'https://www.uniqlo.com/kr/ko/',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        }
+        response = requests.get(hd_url, headers=headers, timeout=(10, 15))
+        if response.status_code != 200:
+            # 고해상도 실패 시 원본 URL로 재시도
+            response = requests.get(url, headers=headers, timeout=(10, 15))
+        if response.status_code != 200:
+            return None
+        
+        img = PILImage.open(io.BytesIO(response.content))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        
+        # 엑셀용 
+        img_small = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_small = io.BytesIO()
+        img_small.save(buf_small, format='JPEG', quality=85)
+        buf_small.seek(0)
+        
+        # HD용
+        img_hd = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        buf_hd = io.BytesIO()
+        img_hd.save(buf_hd, format='JPEG', quality=92)
+        buf_hd.seek(0)
+        
+        return (buf_small, buf_hd)
+    except Exception:
+        return None
+
+
 def _screenshot_missing_images(driver, all_data, missing_products):
-    """Phase 3: 이미지가 없는 상품만 골라서 해당 페이지에서 스크린샷 (timeout 보호)
-    - HD 이미지를 즉시 디스크 저장 (크래시 시에도 보존)
-    - 연속 실패 시 Chrome 재시작
+    """Phase 3: 누락 이미지를 URL 직접 다운로드로 수집 (스크린샷 fallback)
+    - 1단계: image_url로 HTTP 직접 다운로드 (정확도 100%, 팝업 영향 없음)
+    - 2단계: 다운로드 실패 건만 Selenium 스크린샷 fallback
+    - HD 이미지를 즉시 디스크 저장
     - driver를 반환 (재시작될 수 있으므로)
     """
     if not missing_products:
-        log("\n  [Phase 3] 누락 이미지 없음 - 스크린샷 건너뜀")
+        log("\n  [Phase 3] 누락 이미지 없음 - 건너뜀")
         return driver
     
-    log(f"\n  [Phase 3] 누락 이미지 {len(missing_products)}개 스크린샷 시작")
+    log(f"\n  [Phase 3] 누락 이미지 {len(missing_products)}개 처리 시작")
     
     hd_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'product_images_hd')
     os.makedirs(hd_dir, exist_ok=True)
     
-    # 시트별로 그룹핑 (같은 페이지의 상품을 한 번에 처리)
+    # ── 1단계: image_url로 HTTP 직접 다운로드 ──
+    log("\n    [3-1] 이미지 URL 직접 다운로드 시도...")
+    downloaded = 0
+    still_missing = []  # 다운로드 실패 목록
+    
+    for sheet_name, prod_idx, prod in missing_products:
+        img_url = prod.get('image_url', '')
+        if img_url:
+            result = _download_image_direct(img_url)
+            if result:
+                prod['image_data'] = result[0]
+                prod['hd_image_data'] = result[1]
+                _save_hd_image_immediately(prod, sheet_name, hd_dir)
+                downloaded += 1
+            else:
+                still_missing.append((sheet_name, prod_idx, prod))
+        else:
+            still_missing.append((sheet_name, prod_idx, prod))
+    
+    log(f"    -> URL 다운로드 성공: {downloaded}/{len(missing_products)}개")
+    
+    if not still_missing:
+        log(f"\n  [Phase 3 완료] 전체 {downloaded}개 다운로드 성공 (스크린샷 불필요!)")
+        return driver
+    
+    # ── 2단계: 실패 건만 Selenium 스크린샷 fallback ──
+    log(f"\n    [3-2] 스크린샷 fallback: {len(still_missing)}개 남음")
+    
     from collections import defaultdict
     by_sheet = defaultdict(list)
-    for sheet_name, prod_idx, prod in missing_products:
+    for sheet_name, prod_idx, prod in still_missing:
         by_sheet[sheet_name].append((prod_idx, prod))
     
     captured_total = 0
     
     for sheet_name, items in by_sheet.items():
-        # sheet_name = "WOMEN_모두보기" → category="WOMEN", tab="모두보기"
         parts = sheet_name.split('_', 1)
         if len(parts) != 2:
             continue
@@ -1586,7 +1666,6 @@ def _screenshot_missing_images(driver, all_data, missing_products):
         
         try:
             if not safe_get(driver, url):
-                # safe_get 실패 시 Chrome 재시작 후 재시도
                 log(f"      -> safe_get 실패, Chrome 재시작")
                 _safe_quit_driver(driver)
                 driver = setup_driver()
@@ -1594,14 +1673,12 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                     log(f"      -> 재시작 후에도 실패, 건너뜀")
                     continue
             
-            # 페이지 로딩 대기
             for _ in range(5):
                 time.sleep(0.8)
             
             close_cookie_popup(driver)
             close_unexpected_windows(driver)
             
-            # 드라이버 응답 확인
             alive = _run_with_timeout(lambda: driver.execute_script("return true;"), timeout_sec=10)
             if alive is None:
                 log(f"      -> 드라이버 응답 없음, Chrome 재시작")
@@ -1612,10 +1689,8 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 time.sleep(4)
                 alive = _run_with_timeout(lambda: driver.execute_script("return true;"), timeout_sec=10)
                 if alive is None:
-                    log(f"      -> 재시작 후에도 응답 없음, 건너뜀")
                     continue
             
-            # 탭 클릭 (모두보기가 아닌 경우)
             if tab_name != '모두보기':
                 if not click_tab(driver, tab_name):
                     log(f"      -> 탭 클릭 실패, 건너뜀")
@@ -1623,7 +1698,7 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 time.sleep(1)
                 close_unexpected_windows(driver)
             
-            # 스크롤하여 이미지 로드 (timeout 보호)
+            # 스크롤하여 이미지 로드
             scroll_r = _run_with_timeout(lambda: driver.execute_script("""
                 (function() {
                     var steps = 3, i = 0;
@@ -1638,7 +1713,6 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 })(); return true;
             """), timeout_sec=15)
             if scroll_r is None:
-                log(f"      -> 스크롤 타임아웃, Chrome 재시작")
                 _safe_quit_driver(driver)
                 driver = setup_driver()
                 continue
@@ -1646,22 +1720,19 @@ def _screenshot_missing_images(driver, all_data, missing_products):
             threading.Event().wait(timeout=5.0)
             close_unexpected_windows(driver)
             
-            # 상품 타일 찾기 (timeout 보호)
             product_tiles = _run_with_timeout(lambda: _find_product_tiles(driver), timeout_sec=10)
             if product_tiles is None:
-                log(f"      -> 타일 검색 타임아웃, Chrome 재시작")
                 _safe_quit_driver(driver)
                 driver = setup_driver()
                 continue
             if not product_tiles:
-                log(f"      -> 상품 타일 없음, 건너뜀")
                 continue
             
             captured = 0
             consecutive_fail = 0
             for prod_idx, prod in items:
                 if consecutive_fail >= 3:
-                    log(f"      -> 연속 3회 실패, 나머지 {len(items) - captured}개 건너뜀 → Chrome 재시작")
+                    log(f"      -> 연속 3회 스크린샷 실패, Chrome 재시작")
                     _safe_quit_driver(driver)
                     driver = setup_driver()
                     break
@@ -1672,7 +1743,6 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 
                 tile = product_tiles[rank - 1]
                 
-                # 이미지 요소 찾기 (timeout 보호)
                 def _find_img(t=tile):
                     try:
                         return t.find_element(By.CSS_SELECTOR, ".swiper-slide-active img.image__img")
@@ -1685,6 +1755,22 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                 img_elem = _run_with_timeout(_find_img, timeout_sec=10)
                 
                 if img_elem:
+                    # fallback: 먼저 요소에서 src URL을 추출해 다운로드 시도
+                    try:
+                        src_url = img_elem.get_attribute('data-src') or img_elem.get_attribute('src') or ''
+                        if src_url:
+                            dl_result = _download_image_direct(src_url)
+                            if dl_result:
+                                prod['image_data'] = dl_result[0]
+                                prod['hd_image_data'] = dl_result[1]
+                                _save_hd_image_immediately(prod, sheet_name, hd_dir)
+                                captured += 1
+                                consecutive_fail = 0
+                                continue
+                    except Exception:
+                        pass
+                    
+                    # 최후 수단: 요소 스크린샷
                     img_data = capture_image_from_element(img_elem, driver)
                     if img_data:
                         prod['image_data'] = img_data[0]
@@ -1698,10 +1784,10 @@ def _screenshot_missing_images(driver, all_data, missing_products):
                     consecutive_fail += 1
             
             captured_total += captured
-            log(f"      -> {captured}/{len(items)}개 스크린샷 완료")
+            log(f"      -> {captured}/{len(items)}개 캡처 완료")
             
         except BrowserCrashedError:
-            log(f"      -> BrowserCrashedError, Chrome 재시작 후 계속")
+            log(f"      -> BrowserCrashedError, Chrome 재시작")
             try:
                 _safe_quit_driver(driver)
             except Exception:
@@ -1710,16 +1796,15 @@ def _screenshot_missing_images(driver, all_data, missing_products):
             continue
         except Exception as e:
             if _is_driver_dead_error(e):
-                log(f"      -> 드라이버 사망, Chrome 재시작 후 계속")
                 try:
                     _safe_quit_driver(driver)
                 except Exception:
                     pass
                 driver = setup_driver()
                 continue
-            log(f"      -> 스크린샷 오류: {str(e)[:50]}")
+            log(f"      -> 오류: {str(e)[:50]}")
     
-    log(f"\n  [Phase 3 완료] 총 {captured_total}/{len(missing_products)}개 스크린샷 성공")
+    log(f"\n  [Phase 3 완료] URL 다운로드 {downloaded}개 + 스크린샷 {captured_total}개 = 총 {downloaded + captured_total}/{len(missing_products)}개")
     return driver
 
 
@@ -1841,7 +1926,7 @@ def main():
             # ============================================================
             if missing_products:
                 log("\n" + "=" * 60)
-                log(f"[Phase 3] 누락 이미지 {len(missing_products)}개 스크린샷")
+                log(f"[Phase 3] 누락 이미지 {len(missing_products)}개 다운로드+캡처")
                 log("=" * 60)
                 
                 phase3_start = _time.time()

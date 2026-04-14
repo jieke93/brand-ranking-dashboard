@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-탑텐 랭킹 크롤러 V3 (스크린샷 캡처 버전)
-- 이미지를 네트워크 다운로드 대신 스크린샷 캡처 방식으로 수집
-- 유니클로 V5와 동일한 방식
+탑텐 랭킹 크롤러 V3 (이미지 URL 다운로드 + 스크린샷 fallback)
+- 이미지를 URL 직접 다운로드 우선, 실패 시 스크린샷 fallback
+- 팝업 영향 없는 정확한 이미지 수집
 """
 import sys
 import io
@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 import urllib.robotparser
 from PIL import Image as PILImage
+import requests as http_requests
 
 # 이미지 설정
 IMG_WIDTH = 80
@@ -86,7 +87,7 @@ CATEGORIES = {
 }
 
 def capture_image_from_element(element):
-    """요소를 스크린샷 캡처하여 이미지로 반환
+    """요소를 스크린샷 캡처하여 이미지로 반환 (fallback용)
     반환: (excel_img_bytes, hd_img_bytes) 튜플 또는 None"""
     try:
         png_data = element.screenshot_as_png
@@ -103,6 +104,53 @@ def capture_image_from_element(element):
         hd_bytes.seek(0)
         
         xl_img = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        xl_bytes = io.BytesIO()
+        xl_img.save(xl_bytes, format='JPEG', quality=85)
+        xl_bytes.seek(0)
+        
+        return (xl_bytes, hd_bytes)
+    except Exception as e:
+        return None
+
+
+def download_image_from_url(url):
+    """이미지 URL에서 직접 다운로드 (정확도 100%, 팝업 영향 없음)"""
+    if not url or not url.startswith('http'):
+        return None
+    try:
+        # 고해상도 URL로 변환 시도
+        hd_url = re.sub(r'/resize/\d+x\d+', '/resize/600x600', url)
+        hd_url = re.sub(r'width=\d+', 'width=600', hd_url)
+        hd_url = re.sub(r'height=\d+', 'height=600', hd_url)
+        
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://topten10.goodwearmall.com/',
+            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        }
+        resp = http_requests.get(hd_url, headers=headers, timeout=(10, 15))
+        if resp.status_code != 200:
+            resp = http_requests.get(url, headers=headers, timeout=(10, 15))
+        if resp.status_code != 200:
+            return None
+        
+        img = PILImage.open(io.BytesIO(resp.content))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        
+        hd_img = img.resize((HD_IMG_WIDTH, HD_IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        hd_bytes = io.BytesIO()
+        hd_img.save(hd_bytes, format='JPEG', quality=92)
+        hd_bytes.seek(0)
+        
+        xl_img = img.resize((IMG_WIDTH, IMG_HEIGHT), PILImage.Resampling.LANCZOS)
+        xl_bytes = io.BytesIO()
+        xl_img.save(xl_bytes, format='JPEG', quality=85)
+        xl_bytes.seek(0)
+        
+        return (xl_bytes, hd_bytes)
+    except Exception:
+        return None
         xl_bytes = io.BytesIO()
         xl_img.save(xl_bytes, format='JPEG', quality=85)
         xl_bytes.seek(0)
@@ -172,14 +220,81 @@ def setup_driver():
     return driver
 
 def click_category(driver, category_code):
-    """카테고리 변경 - JavaScript 함수 호출"""
+    """카테고리 변경 - 여러 방식 시도 (JS → 탭 클릭 → URL 파라미터)"""
+    # 방법 1: 기존 JS 함수 호출
     try:
         driver.execute_script(f"rankingForm.rankingAll('{category_code}');")
         time.sleep(2)
         return True
-    except Exception as e:
-        log(f"      [오류] 카테고리 변경 실패: {e}")
-        return False
+    except Exception:
+        pass
+    
+    # 방법 2: 탭 요소 직접 클릭 (data-ctgr-no 또는 텍스트 매칭)
+    category_name_map = {
+        'SSMA41': '여성', 'SSMA42': '남성', 'SSMA43': '키즈', 'SSMA46': '베이비'
+    }
+    target_name = category_name_map.get(category_code, '')
+    try:
+        tabs = driver.find_elements(By.CSS_SELECTOR, 
+            f"[data-ctgr-no='{category_code}'], [data-code='{category_code}'], "
+            f"[data-category='{category_code}'], [value='{category_code}']")
+        if tabs:
+            tabs[0].click()
+            time.sleep(2)
+            return True
+    except Exception:
+        pass
+    
+    try:
+        tab_selectors = [
+            '.tab-menu a', '.tab-menu li', '.category-tab a', '.category-tab li',
+            '.ranking-tab a', '.ranking-tab li', 'ul.tabs li', 'ul.tabs a',
+            '.tab_list a', '.tab_list li', 'nav a', '.nav-tabs a',
+            '.swiper-slide a', 'button', '[role="tab"]'
+        ]
+        for sel in tab_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, sel)
+                for el in elements:
+                    txt = el.text.strip()
+                    if txt and target_name and target_name in txt:
+                        el.click()
+                        time.sleep(2)
+                        return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    
+    # 방법 3: XPath 텍스트 매칭
+    try:
+        if target_name:
+            xpath_el = driver.find_element(By.XPATH, 
+                f"//*[contains(text(), '{target_name}') and (self::a or self::button or self::li or self::span)]")
+            xpath_el.click()
+            time.sleep(2)
+            return True
+    except Exception:
+        pass
+    
+    # 방법 4: URL 파라미터로 직접 이동 (타임아웃 보호)
+    try:
+        current_url = driver.current_url
+        new_url = f"https://topten10.goodwearmall.com/display/ranking?ctgrNo={category_code}"
+        driver.set_page_load_timeout(15)  # URL 이동 15초 타임아웃
+        try:
+            driver.get(new_url)
+        except Exception:
+            pass  # 타임아웃돼도 페이지는 부분 로드될 수 있음
+        driver.set_page_load_timeout(60)  # 복원
+        time.sleep(3)
+        return True
+    except Exception:
+        driver.set_page_load_timeout(60)
+        pass
+    
+    log(f"      [오류] 모든 카테고리 전환 방법 실패 ({category_code})")
+    return False
 
 def extract_products(driver, max_products=30):
     """상품 데이터 추출 - 스크린샷 캡처 방식"""
@@ -279,19 +394,42 @@ def extract_products(driver, max_products=30):
             except:
                 pass
             
-            # 이미지 캡처 (스크린샷 방식)
+            # 이미지 수집 (URL 다운로드 우선 → 스크린샷 fallback)
             try:
-                # 이미지 요소로 스크롤
                 img_elem = tile.find_element(By.CSS_SELECTOR, ".tile-img")
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", img_elem)
-                time.sleep(0.1)
                 
-                # 스크린샷 캡처
-                img_data = capture_image_from_element(img_elem)
-                if img_data:
-                    product['image_data'] = img_data[0]      # 엑셀용
-                    product['hd_image_data'] = img_data[1]   # 대시보드용 고해상도
-                    img_success += 1
+                # 1차: img 태그의 src URL로 직접 다운로드
+                img_url = None
+                try:
+                    actual_img = img_elem.find_element(By.TAG_NAME, "img")
+                    img_url = actual_img.get_attribute('src') or actual_img.get_attribute('data-src') or ''
+                except Exception:
+                    pass
+                
+                if img_url:
+                    dl_result = download_image_from_url(img_url)
+                    if dl_result:
+                        product['image_data'] = dl_result[0]
+                        product['hd_image_data'] = dl_result[1]
+                        img_success += 1
+                    else:
+                        # 다운로드 실패 시 스크린샷 fallback
+                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", img_elem)
+                        time.sleep(0.1)
+                        img_data = capture_image_from_element(img_elem)
+                        if img_data:
+                            product['image_data'] = img_data[0]
+                            product['hd_image_data'] = img_data[1]
+                            img_success += 1
+                else:
+                    # URL 없으면 스크린샷
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", img_elem)
+                    time.sleep(0.1)
+                    img_data = capture_image_from_element(img_elem)
+                    if img_data:
+                        product['image_data'] = img_data[0]
+                        product['hd_image_data'] = img_data[1]
+                        img_success += 1
             except:
                 pass
             
