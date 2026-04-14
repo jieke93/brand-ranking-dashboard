@@ -2738,9 +2738,10 @@ def page_survey_analysis():
     st.caption("품평회 설문 RAW 엑셀 파일을 업로드하면 자동으로 분석 엑셀 + PPT를 생성합니다.")
 
     uploaded = st.file_uploader(
-        "설문 RAW 엑셀 파일 업로드 (.xlsx)",
-        type=["xlsx"],
-        help="Google Forms 등에서 다운받은 원본 응답 엑셀 파일",
+        "설문 RAW 파일 업로드 (.xlsx, .csv, .tsv, .xls, .ods)",
+        type=["xlsx", "csv", "tsv", "xls", "ods"],
+        help="Google Forms에서 다운로드한 모든 형식 지원 (스프레드시트, CSV, TSV 등)",
+        key="survey_file_uploader",
     )
 
     if uploaded is None:
@@ -2750,9 +2751,10 @@ def page_survey_analysis():
         with st.expander("📖 RAW 파일 요건 (클릭하여 펼치기)", expanded=False):
             st.markdown("""
 ### 파일 형식
-- **`.xlsx` (엑셀)** 파일만 지원 (`.xls`, `.csv` 불가)
-- Google Forms → **"응답" 시트 → 스프레드시트에서 응답 보기 → 파일 → 다운로드 → .xlsx** 로 받은 파일
-- 첫 번째 시트(활성 시트)만 읽습니다
+- **`.xlsx`** (엑셀), **`.csv`**, **`.tsv`**, **`.xls`** (구형 엑셀), **`.ods`** (오픈도큐먼트) 모두 지원
+- Google Forms → **"응답" 시트 → 스프레드시트에서 응답 보기 → 파일 → 다운로드** → 아무 형식으로 받으면 됩니다
+- CSV/TSV: UTF-8 인코딩 기준 (Google 기본값)
+- 엑셀 파일은 첫 번째 시트(활성 시트)만 읽습니다
 
 ---
 

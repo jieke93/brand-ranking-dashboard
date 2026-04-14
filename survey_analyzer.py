@@ -8,6 +8,8 @@
 import sys
 import os
 import re
+import csv
+import io
 from collections import defaultdict
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -32,8 +34,8 @@ def clean_gender(raw_gender):
     return g
 
 
-def load_raw_data(filepath):
-    """RAW 엑셀 파일을 로드하고 헤더와 데이터를 반환"""
+def _load_xlsx(filepath):
+    """xlsx 파일 로드"""
     wb = openpyxl.load_workbook(filepath, data_only=True)
     ws = wb.active
 
@@ -47,11 +49,79 @@ def load_raw_data(filepath):
         row_data = []
         for col in range(1, ws.max_column + 1):
             row_data.append(ws.cell(row=row, column=col).value)
-        # 빈 행 스킵
         if any(v is not None for v in row_data[:6]):
             data.append(row_data)
 
     return headers, data
+
+
+def _load_csv(filepath, delimiter=','):
+    """CSV/TSV 파일 로드"""
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
+        reader = csv.reader(f, delimiter=delimiter)
+        rows = list(reader)
+
+    if not rows:
+        return [], []
+
+    headers = [h.strip() if h else "" for h in rows[0]]
+    data = []
+    for row in rows[1:]:
+        # 열 수 맞추기
+        while len(row) < len(headers):
+            row.append(None)
+        row_data = []
+        for val in row[:len(headers)]:
+            val = val.strip() if val else None
+            if val == '':
+                val = None
+            # 숫자 자동 변환
+            if val is not None:
+                try:
+                    if '.' in val:
+                        val = float(val)
+                    else:
+                        val = int(val)
+                except (ValueError, TypeError):
+                    pass
+            row_data.append(val)
+        if any(v is not None for v in row_data[:6]):
+            data.append(row_data)
+
+    return headers, data
+
+
+def load_raw_data(filepath):
+    """RAW 파일을 로드하고 헤더와 데이터를 반환 (xlsx, csv, tsv, xls, ods 지원)"""
+    ext = os.path.splitext(filepath)[1].lower()
+
+    if ext == '.csv':
+        return _load_csv(filepath, delimiter=',')
+    elif ext == '.tsv':
+        return _load_csv(filepath, delimiter='\t')
+    elif ext in ('.xls', '.ods'):
+        # xls/ods → pandas 경유 변환
+        try:
+            import pandas as pd
+            if ext == '.xls':
+                df = pd.read_excel(filepath, engine='xlrd', header=0)
+            else:
+                df = pd.read_excel(filepath, engine='odf', header=0)
+            headers = [str(c) if c else "" for c in df.columns.tolist()]
+            data = []
+            for _, row in df.iterrows():
+                row_data = [None if pd.isna(v) else v for v in row.tolist()]
+                if any(v is not None for v in row_data[:6]):
+                    data.append(row_data)
+            return headers, data
+        except ImportError:
+            raise ImportError(
+                f"{ext} 파일을 읽으려면 추가 패키지가 필요합니다. "
+                f"pip install {'xlrd' if ext == '.xls' else 'odfpy'} pandas"
+            )
+    else:
+        # 기본: xlsx
+        return _load_xlsx(filepath)
 
 
 def find_gender_age_columns(headers):
@@ -81,12 +151,9 @@ def identify_items(headers, start_col=6):
         h = str(headers[i]).strip()
         if not h:
             continue
-        # 빈 Google Sheets 열 ("열1", "열2" 등) 무시
-        if re.match(r'^열\d+$', h):
-            continue
 
-        # "1. " 또는 "1.[" 로 시작하면 새 아이템
-        if re.match(r'^1\.[\s\[]', h):
+        # "1. " 또는 "1." 로 시작하면 새 아이템
+        if re.match(r'^1\.\s', h):
             if current_item:
                 items.append(current_item)
             item_counter += 1
