@@ -490,7 +490,64 @@ def get_archived_image_b64(brand, product_name):
     if os.path.exists(archive_path):
         with open(archive_path, 'rb') as f:
             return base64.b64encode(f.read()).decode('utf-8')
+    # Cloud fallback: product_thumbnails.json
+    thumbs = _load_thumbnail_json()
+    if thumbs:
+        thumb_key = _make_thumb_key(brand, product_name)
+        if thumb_key in thumbs:
+            return thumbs[thumb_key]
     return None
+
+
+@st.cache_data(ttl=600)
+def _load_thumbnail_json():
+    """product_thumbnails.json 로드 (Cloud 환경용 이미지 fallback)"""
+    fp = os.path.join(WORK_DIR, 'product_thumbnails.json')
+    if not os.path.exists(fp):
+        return {}
+    try:
+        with open(fp, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _make_thumb_key(brand, product_name):
+    """상품명을 HD 파일명과 동일한 safe key로 변환"""
+    name_short = str(product_name)[:20]
+    safe = re.sub(r'[^\w\s-]', '', name_short).strip().replace(' ', '_')
+    return f"{brand}_{safe}"
+
+
+def augment_image_map_from_thumbnails(image_map, df):
+    """product_thumbnails.json에서 이미지 보충 (Cloud 환경 fallback)
+    
+    로컬에 HD/archive 이미지가 없는 경우 썸네일 JSON에서 매칭
+    """
+    thumbs = _load_thumbnail_json()
+    if not thumbs or df is None or df.empty:
+        return image_map
+
+    augmented = dict(image_map)
+    filled = 0
+    for _, row in df.iterrows():
+        brand = row.get('brand', '')
+        sheet = row.get('sheet', '')
+        rank = row.get('rank', 0)
+        name = row.get('name', '')
+        if not brand or not name or not rank:
+            continue
+
+        key = (brand, sheet, int(rank))
+        if key in augmented:
+            continue
+
+        thumb_key = _make_thumb_key(brand, name)
+        if thumb_key in thumbs:
+            augmented[key] = thumbs[thumb_key]
+            filled += 1
+
+    return augmented
 
 
 @st.cache_data(ttl=600)
@@ -3107,6 +3164,8 @@ def main():
             image_map = extract_all_product_images()
             # archive 이미지로 보충 (HD 이미지 없는 유니클로·아르켓 등)
             image_map = augment_image_map_from_archive(image_map, df)
+            # 썸네일 JSON으로 보충 (Cloud 환경 fallback)
+            image_map = augment_image_map_from_thumbnails(image_map, df)
             # SPAO 이미지 통합 (archive → URL fallback)
             spao_images = load_spao_image_map()
             if spao_images:
