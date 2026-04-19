@@ -490,12 +490,6 @@ def get_archived_image_b64(brand, product_name):
     if os.path.exists(archive_path):
         with open(archive_path, 'rb') as f:
             return base64.b64encode(f.read()).decode('utf-8')
-    # Cloud fallback: product_thumbnails.json
-    thumbs = _load_thumbnail_json()
-    if thumbs:
-        thumb_key = _make_thumb_key(brand, product_name)
-        if thumb_key in thumbs:
-            return thumbs[thumb_key]
     return None
 
 
@@ -512,17 +506,10 @@ def _load_thumbnail_json():
         return {}
 
 
-def _make_thumb_key(brand, product_name):
-    """상품명을 HD 파일명과 동일한 safe key로 변환"""
-    name_short = str(product_name)[:20]
-    safe = re.sub(r'[^\w\s-]', '', name_short).strip().replace(' ', '_')
-    return f"{brand}_{safe}"
-
-
 def augment_image_map_from_thumbnails(image_map, df):
     """product_thumbnails.json에서 이미지 보충 (Cloud 환경 fallback)
     
-    로컬에 HD/archive 이미지가 없는 경우 썸네일 JSON에서 매칭
+    썸네일 키 형식: 'brand|sheet|rank' (정확한 1:1 매칭)
     """
     thumbs = _load_thumbnail_json()
     if not thumbs or df is None or df.empty:
@@ -534,15 +521,14 @@ def augment_image_map_from_thumbnails(image_map, df):
         brand = row.get('brand', '')
         sheet = row.get('sheet', '')
         rank = row.get('rank', 0)
-        name = row.get('name', '')
-        if not brand or not name or not rank:
+        if not brand or not sheet or not rank:
             continue
 
         key = (brand, sheet, int(rank))
         if key in augmented:
             continue
 
-        thumb_key = _make_thumb_key(brand, name)
+        thumb_key = f'{brand}|{sheet}|{int(rank)}'
         if thumb_key in thumbs:
             augmented[key] = thumbs[thumb_key]
             filled += 1
