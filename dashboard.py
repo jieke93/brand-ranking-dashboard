@@ -510,27 +510,26 @@ def augment_image_map_from_thumbnails(image_map, df):
     """product_thumbnails.json에서 이미지 보충 (Cloud 환경 fallback)
     
     썸네일 키 형식: 'brand|sheet|rank' (정확한 1:1 매칭)
+    df 인자는 하위 호환성 유지용 (사용하지 않음).
     """
     thumbs = _load_thumbnail_json()
-    if not thumbs or df is None or df.empty:
+    if not thumbs:
         return image_map
 
     augmented = dict(image_map)
     filled = 0
-    for _, row in df.iterrows():
-        brand = row.get('brand', '')
-        sheet = row.get('sheet', '')
-        rank = row.get('rank', 0)
-        if not brand or not sheet or not rank:
+    for thumb_key, b64 in thumbs.items():
+        parts = thumb_key.split('|')
+        if len(parts) != 3:
             continue
-
-        key = (brand, sheet, int(rank))
-        if key in augmented:
+        brand, sheet, rank_str = parts
+        try:
+            rank = int(rank_str)
+        except (ValueError, TypeError):
             continue
-
-        thumb_key = f'{brand}|{sheet}|{int(rank)}'
-        if thumb_key in thumbs:
-            augmented[key] = thumbs[thumb_key]
+        key = (brand, sheet, rank)
+        if key not in augmented:
+            augmented[key] = b64
             filled += 1
 
     return augmented
