@@ -493,7 +493,7 @@ def get_archived_image_b64(brand, product_name):
     return None
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=60)
 def _load_thumbnail_json():
     """product_thumbnails.json 로드 (Cloud 환경용 이미지 fallback)"""
     fp = os.path.join(WORK_DIR, 'product_thumbnails.json')
@@ -3147,14 +3147,20 @@ def main():
                     spao_merge['date'] = ''
                 df = pd.concat([df, spao_merge], ignore_index=True)
             image_map = extract_all_product_images()
+            _img_extract_count = len(image_map)
             # archive 이미지로 보충 (HD 이미지 없는 유니클로·아르켓 등)
             image_map = augment_image_map_from_archive(image_map, df)
+            _img_archive_count = len(image_map) - _img_extract_count
             # 썸네일 JSON으로 보충 (Cloud 환경 fallback)
             image_map = augment_image_map_from_thumbnails(image_map, df)
+            _img_thumb_count = len(image_map) - _img_extract_count - _img_archive_count
             # SPAO 이미지 통합 (archive → URL fallback)
             spao_images = load_spao_image_map()
             if spao_images:
                 image_map.update(spao_images)
+            # 사이드바에 이미지 로딩 상태 표시
+            with st.sidebar:
+                st.caption(f"🖼️ 이미지: {len(image_map)}개 (추출:{_img_extract_count} 아카이브:{_img_archive_count} 썸네일:{_img_thumb_count})")
     except Exception as e:
         st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
         history = {}
