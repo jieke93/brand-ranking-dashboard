@@ -608,7 +608,7 @@ def _write_numeric_summary(ws, items, data, gender_col, age_col, genders, ages,
 
         for q in numeric_qs:
             q_text = q["header"][:70]
-            if q_type == "적정가격":
+            if q_type in ("선호도", "적정가격"):
                 q_text = f"[{get_item_label(item)}] {q_text}"
 
             # --- 0 포함 행 ---
@@ -905,7 +905,7 @@ def _write_overview(ws, data, gender_col, age_col, genders, ages, items,
         ws.cell(row=row, column=1, value=item["item_no"]).border = thin_border
         ws.cell(row=row, column=1).alignment = center_align
         first_q = item["questions"][0]["header"][:70] if item["questions"] else ""
-        ws.cell(row=row, column=2, value=first_q).border = thin_border
+        ws.cell(row=row, column=2, value=f"[{get_item_label(item)}] {first_q}").border = thin_border
         ws.cell(row=row, column=3, value=len(item["questions"])).border = thin_border
         ws.cell(row=row, column=3).alignment = center_align
         row += 1
