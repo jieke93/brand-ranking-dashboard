@@ -44,6 +44,7 @@ WORK_DIR = os.path.dirname(os.path.abspath(__file__))
 IMG_CACHE_DIR = os.path.join(WORK_DIR, 'product_images')
 IMG_HD_DIR = os.path.join(WORK_DIR, 'product_images_hd')
 IMG_ARCHIVE_DIR = os.path.join(WORK_DIR, 'image_archive')  # 상품명 기반 영구 보관
+DEPLOY_VERSION = '2026-05-15-hotfix-1'
 
 # ─── 브랜드 색상 ───
 BRAND_COLORS = {
@@ -493,7 +494,6 @@ def get_archived_image_b64(brand, product_name):
     return None
 
 
-@st.cache_data(ttl=60)
 def _load_thumbnail_json():
     """product_thumbnails.json 로드 (Cloud 환경용 이미지 fallback)"""
     fp = os.path.join(WORK_DIR, 'product_thumbnails.json')
@@ -3161,6 +3161,7 @@ def main():
             # 사이드바에 이미지 로딩 상태 표시
             with st.sidebar:
                 st.caption(f"🖼️ 이미지: {len(image_map)}개 (추출:{_img_extract_count} 아카이브:{_img_archive_count} 썸네일:{_img_thumb_count})")
+                st.caption(f"deploy: {DEPLOY_VERSION}")
     except Exception as e:
         st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
         history = {}
