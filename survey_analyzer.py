@@ -124,6 +124,76 @@ def load_raw_data(filepath):
         return _load_xlsx(filepath)
 
 
+def load_item_name_map(filepath):
+    """아이템 번호-이름 매핑 파일 로드.
+
+    지원 형식: xlsx, csv, tsv, xls, ods
+    권장 컬럼명: item_no, item_name (또는 아이템번호, 아이템명)
+    """
+    ext = os.path.splitext(filepath)[1].lower()
+
+    try:
+        import pandas as pd
+    except ImportError:
+        raise ImportError("아이템 매핑 파일을 읽으려면 pandas가 필요합니다. pip install pandas")
+
+    if ext == '.csv':
+        df = pd.read_csv(filepath, encoding='utf-8-sig')
+    elif ext == '.tsv':
+        df = pd.read_csv(filepath, sep='\t', encoding='utf-8-sig')
+    else:
+        if ext == '.xls':
+            df = pd.read_excel(filepath, engine='xlrd')
+        elif ext == '.ods':
+            df = pd.read_excel(filepath, engine='odf')
+        else:
+            df = pd.read_excel(filepath)
+
+    if df.empty:
+        return {}
+
+    col_map = {str(c).strip().lower().replace(' ', '').replace('_', ''): c for c in df.columns}
+
+    no_col = None
+    for k in ('itemno', '아이템번호', '번호', 'no'):
+        if k in col_map:
+            no_col = col_map[k]
+            break
+    name_col = None
+    for k in ('itemname', '아이템명', '이름', 'name', '상품명'):
+        if k in col_map:
+            name_col = col_map[k]
+            break
+
+    # 컬럼명이 표준이 아니면 앞 2개 컬럼을 사용
+    if no_col is None or name_col is None:
+        if len(df.columns) < 2:
+            return {}
+        no_col = df.columns[0]
+        name_col = df.columns[1]
+
+    mapping = {}
+    for _, row in df.iterrows():
+        raw_no = row.get(no_col)
+        raw_name = row.get(name_col)
+        if raw_no is None or raw_name is None:
+            continue
+
+        no_text = str(raw_no).strip()
+        m = re.search(r'(\d+)', no_text)
+        if not m:
+            continue
+        item_no = int(m.group(1))
+
+        item_name = str(raw_name).strip()
+        if not item_name or item_name.lower() == 'nan':
+            continue
+
+        mapping[item_no] = item_name
+
+    return mapping
+
+
 def find_gender_age_columns(headers):
     """성별과 연령 열 인덱스를 찾기"""
     gender_col = None
@@ -137,7 +207,36 @@ def find_gender_age_columns(headers):
     return gender_col, age_col
 
 
-def identify_items(headers, start_col=6):
+def _extract_item_name_from_header(header_text):
+    """아이템 시작 헤더(1. ...)에서 아이템명을 추출"""
+    h = str(header_text).strip()
+    h = re.sub(r'^1\.\s*', '', h)
+
+    m = re.search(r'\[([^\]]+)\]', h)
+    if m:
+        return m.group(1).strip()
+
+    cut_tokens = ["해당 상품", "선호도", "평가해주세요", "평가해 주세요", "10점", "만점"]
+    for token in cut_tokens:
+        idx = h.find(token)
+        if idx > 0:
+            cand = h[:idx].strip(" -:[]")
+            if cand:
+                return cand
+
+    return ""
+
+
+def get_item_label(item, compact=False):
+    """아이템 표시 라벨 반환 (매핑명 우선, 없으면 아이템 번호)"""
+    custom = str(item.get("display_name") or item.get("item_name") or "").strip()
+    if custom:
+        return custom
+    no = item.get('item_no', '')
+    return f"아이템{no}" if compact else f"아이템 {no}"
+
+
+def identify_items(headers, start_col=6, item_name_map=None):
     """
     G열(인덱스 6)부터 시작하여 아이템 경계를 찾음
     '1.'로 시작하는 헤더가 나오면 새 아이템의 시작
@@ -157,8 +256,16 @@ def identify_items(headers, start_col=6):
             if current_item:
                 items.append(current_item)
             item_counter += 1
+            mapped_name = ""
+            if item_name_map and item_counter in item_name_map:
+                mapped_name = str(item_name_map[item_counter]).strip()
+            parsed_name = _extract_item_name_from_header(h)
+            final_name = mapped_name or parsed_name
+
             current_item = {
                 "item_no": item_counter,
+                "item_name": final_name,
+                "display_name": final_name if final_name else f"아이템 {item_counter}",
                 "questions": []
             }
             current_item["questions"].append({
@@ -579,7 +686,7 @@ def _write_color_summary(ws, items, data, gender_col, age_col, genders, ages,
 
         for q in color_qs:
             # 아이템 제목
-            ws.cell(row=row, column=1, value=f"아이템 {item['item_no']}").font = item_font
+            ws.cell(row=row, column=1, value=get_item_label(item)).font = item_font
             ws.cell(row=row, column=1).fill = item_fill
             ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
             for c in range(1, 6):
@@ -668,7 +775,7 @@ def _write_cross_summary(ws, items, data, gender_col, age_col, genders, ages,
         avg = calculate_averages(data, q["col_idx"], gender_col, age_col, exclude_zero=False)
         ws.cell(row=row, column=1, value=item["item_no"]).alignment = center_align
         ws.cell(row=row, column=1).border = thin_border
-        ws.cell(row=row, column=2, value=f"아이템{item['item_no']} (0포함)").alignment = left_align
+        ws.cell(row=row, column=2, value=f"{get_item_label(item, compact=True)} (0포함)").alignment = left_align
         ws.cell(row=row, column=2).border = thin_border
         col = 3
         for g in genders:
@@ -691,7 +798,7 @@ def _write_cross_summary(ws, items, data, gender_col, age_col, genders, ages,
         # 0제외 행
         avg_ex = calculate_averages(data, q["col_idx"], gender_col, age_col, exclude_zero=True)
         ws.cell(row=row, column=1, value="").border = thin_border
-        ws.cell(row=row, column=2, value=f"아이템{item['item_no']} (0제외)").alignment = left_align
+        ws.cell(row=row, column=2, value=f"{get_item_label(item, compact=True)} (0제외)").alignment = left_align
         ws.cell(row=row, column=2).border = thin_border
         ws.cell(row=row, column=2).font = Font(bold=True, size=9, color="C00000")
         col = 3
@@ -819,7 +926,7 @@ def _write_special_summary(ws, items, data,
             continue
 
         # 아이템 헤더
-        ws.cell(row=row, column=1, value=f"아이템 {item['item_no']}").font = item_font
+        ws.cell(row=row, column=1, value=get_item_label(item)).font = item_font
         ws.cell(row=row, column=1).fill = item_fill
         for c in range(1, 7):
             ws.cell(row=row, column=c).fill = item_fill
@@ -951,7 +1058,7 @@ def _write_dashboard_data(ws, items, data, gender_col, age_col, genders, ages):
     for row_idx, item in enumerate(items, 2):
         col = 1
         ws.cell(row=row_idx, column=col, value=item["item_no"]); col += 1
-        ws.cell(row=row_idx, column=col, value=f"아이템{item['item_no']}"); col += 1
+        ws.cell(row=row_idx, column=col, value=get_item_label(item, compact=True)); col += 1
 
         # ── 선호도 0포함 ──
         pref_qs = [q for q in item["questions"] if q["type"] == "선호도"]
@@ -2269,7 +2376,7 @@ def create_ppt(items, data, gender_col, age_col, genders, ages, output_path):
         for target_list, avg_data in [(items_inc, avg), (items_exc, avg_ex)]:
             entry = {
                 "item_no": item["item_no"],
-                "name": f"아이템 {item['item_no']}",
+                "name": get_item_label(item),
                 "ttl": avg_data["전체"],
                 "n_total": avg_data["전체_응답수"],
                 "ages": {},
@@ -2550,7 +2657,7 @@ def main():
     print(f"   → {len(items)}개 아이템 발견")
     for item in items:
         q_types = [q["type"] for q in item["questions"]]
-        print(f"      아이템 {item['item_no']}: {len(item['questions'])}개 질문 ({', '.join(set(q_types))})")
+        print(f"      {get_item_label(item)}: {len(item['questions'])}개 질문 ({', '.join(set(q_types))})")
 
     # 성별/연령 목록
     genders_set = set()

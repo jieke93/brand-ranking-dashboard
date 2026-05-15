@@ -2786,6 +2786,13 @@ def page_survey_analysis():
         key="survey_file_uploader",
     )
 
+    item_map_uploaded = st.file_uploader(
+        "아이템명 매핑 파일 (선택, .xlsx/.csv/.tsv/.xls/.ods)",
+        type=["xlsx", "csv", "tsv", "xls", "ods"],
+        help="1열: 아이템 번호, 2열: 아이템명 형식(또는 item_no/item_name 컬럼명)으로 업로드하면 분석 엑셀/PPT에 반영됩니다.",
+        key="survey_item_map_uploader",
+    )
+
     if uploaded is None:
         st.info("💡 파일을 업로드해주세요. 아이템별 선호도/적정가격/컬러선호 등을 자동 분석합니다.")
 
@@ -2877,6 +2884,12 @@ def page_survey_analysis():
     with open(input_path, "wb") as f:
         f.write(uploaded.getvalue())
 
+    item_map_path = None
+    if item_map_uploaded is not None:
+        item_map_path = os.path.join(tmp_dir, item_map_uploaded.name)
+        with open(item_map_path, "wb") as f:
+            f.write(item_map_uploaded.getvalue())
+
     base_name = os.path.splitext(uploaded.name)[0]
     output_excel = os.path.join(tmp_dir, f"{base_name}_분석결과_v7.xlsx")
     output_ppt = os.path.join(tmp_dir, f"{base_name}_분석결과_v7.pptx")
@@ -2892,7 +2905,16 @@ def page_survey_analysis():
             headers, data = sa.load_raw_data(input_path)
 
         gender_col, age_col = sa.find_gender_age_columns(headers)
-        items = sa.identify_items(headers)
+
+        item_name_map = {}
+        if item_map_path:
+            item_name_map = sa.load_item_name_map(item_map_path)
+            if item_name_map:
+                st.success(f"아이템명 매핑 {len(item_name_map)}개 로드됨")
+            else:
+                st.warning("아이템명 매핑 파일에서 유효한 매핑을 찾지 못했습니다. 기본 아이템 번호로 진행합니다.")
+
+        items = sa.identify_items(headers, item_name_map=item_name_map)
 
         if not items:
             st.error("아이템을 식별할 수 없습니다. 헤더 형식을 확인해주세요.")
@@ -2920,7 +2942,7 @@ def page_survey_analysis():
         with st.expander("🔍 아이템 식별 결과", expanded=True):
             for item in items:
                 q_types = list(set(q["type"] for q in item["questions"]))
-                st.write(f"**아이템 {item['item_no']}**: {len(item['questions'])}개 질문 ({', '.join(q_types)})")
+                st.write(f"**{sa.get_item_label(item)}**: {len(item['questions'])}개 질문 ({', '.join(q_types)})")
 
         # 분석 실행
         with st.spinner("📗 분석 엑셀 생성 중..."):
@@ -3047,7 +3069,7 @@ def _show_ranking_preview(items, data, gender_col, age_col, ages):
         avg = sa.calculate_averages(data, pref_qs[0]["col_idx"], gender_col, age_col)
         avg_ex = sa.calculate_averages(data, pref_qs[0]["col_idx"], gender_col, age_col, exclude_zero=True)
         ranking.append({
-            "아이템": f"아이템 {item['item_no']}",
+            "아이템": sa.get_item_label(item),
             "전체(0포함)": avg["전체"],
             "전체(0제외)": avg_ex["전체"],
         })
