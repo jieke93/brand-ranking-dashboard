@@ -259,8 +259,8 @@ def identify_items(headers, start_col=6, item_name_map=None):
             mapped_name = ""
             if item_name_map and item_counter in item_name_map:
                 mapped_name = str(item_name_map[item_counter]).strip()
-            parsed_name = _extract_item_name_from_header(h)
-            final_name = mapped_name or parsed_name
+            # 미매핑 항목은 항상 기본 라벨(아이템 N)로 유지
+            final_name = mapped_name
 
             current_item = {
                 "item_no": item_counter,
@@ -2088,6 +2088,7 @@ def _add_cross_table(slide, left_in, top_in, width_in, pref_avg, genders, ages, 
 def _add_item_slide(prs, slide, item, item_no, data, gender_col, age_col,
                     genders, ages, rank_inc, rank_exc):
     """아이템별 상세 페이지 생성"""
+    item_label = get_item_label(item)
     # ── 제목 박스 ──
     title_box = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE, Inches(0.15), Inches(0.1), Inches(10.5), Inches(0.5))
@@ -2105,7 +2106,7 @@ def _add_item_slide(prs, slide, item, item_no, data, gender_col, age_col,
             rank_text += f" / 0제외 {rank_exc}위"
         rank_text += ")"
     r = p.add_run()
-    r.text = f"아이템 {item_no}"
+    r.text = item_label
     r.font.size = Pt(20)
     r.font.bold = True
     r.font.color.rgb = C_PPT_WHITE
@@ -2253,7 +2254,7 @@ def _add_item_slide(prs, slide, item, item_no, data, gender_col, age_col,
             tf2.margin_left = Inches(0.15)
             p2 = tf2.paragraphs[0]
             r2 = p2.add_run()
-            r2.text = f"아이템 {item_no} - 특수 질문 (계속)"
+            r2.text = f"{item_label} - 특수 질문 (계속)"
             r2.font.size = Pt(20)
             r2.font.bold = True
             r2.font.color.rgb = C_PPT_WHITE
