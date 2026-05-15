@@ -607,9 +607,13 @@ def _write_numeric_summary(ws, items, data, gender_col, age_col, genders, ages,
             continue
 
         for q in numeric_qs:
+            q_text = q["header"][:70]
+            if q_type == "적정가격":
+                q_text = f"[{get_item_label(item)}] {q_text}"
+
             # --- 0 포함 행 ---
             avg_all = calculate_averages(data, q["col_idx"], gender_col, age_col, exclude_zero=False)
-            _write_avg_row(ws, row, item["item_no"], "0포함", q["header"][:70], avg_all,
+            _write_avg_row(ws, row, item["item_no"], "0포함", q_text, avg_all,
                            genders, ages, thin_border, center_align, left_align, None)
             row += 1
 
